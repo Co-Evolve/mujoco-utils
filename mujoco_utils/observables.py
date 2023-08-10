@@ -1,4 +1,4 @@
-from typing import Any, Callable, Iterable, Tuple
+from typing import Any, Callable, Iterable
 
 import numpy as np
 from dm_control import mjcf
@@ -42,10 +42,7 @@ class ConfinedMJCFFeature(MJCFFeature):
             self
             ) -> specs.BoundedArray:
         return specs.BoundedArray(
-                shape=self._shape,
-                dtype=float,
-                minimum=self._low,
-                maximum=self._high
+                shape=self._shape, dtype=float, minimum=self._low, maximum=self._high
                 )
 
 

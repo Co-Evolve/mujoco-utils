@@ -40,22 +40,17 @@ def dm_control_to_gym_environment(
 class MJCEnvironmentConfig:
     def __init__(
             self,
+            task: Callable[[MJCEnvironmentConfig, MJCMorphology], composer.Task],
             time_scale: float = 1.0,
             control_substeps: int = 1,
             simulation_time: float = 10,
             camera_ids: List[int] | None = None
             ) -> None:
+        self.task = task
         self.time_scale = time_scale
         self.control_substeps = control_substeps
         self.simulation_time = simulation_time
         self.camera_ids = camera_ids or [0]
-
-    @property
-    @abc.abstractmethod
-    def task(
-            self
-            ) -> Callable[[MJCEnvironmentConfig, MJCMorphology], composer.Task]:
-        raise NotImplementedError
 
     def environment(
             self,
