@@ -80,7 +80,6 @@ class DMC2GymWrapper(gym.Wrapper):
             rendered_site_groups: List[int] | None = None
             ) -> None:
         super().__init__(env)
-        self.seed(seed)
 
         self._visual_observations = visual_observations
         self._frame_height = frame_height
@@ -102,6 +101,8 @@ class DMC2GymWrapper(gym.Wrapper):
         self._camera_ids = camera_ids or [0]
         self._rendered_geom_groups = rendered_geom_groups or [1] * 6
         self._rendered_site_groups = rendered_site_groups or [1] * 6
+
+        self.seed(seed)
 
     def __getattr__(
             self,
