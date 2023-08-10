@@ -61,6 +61,7 @@ class MJCEnvironmentConfig:
         if wrap2gym:
             env = dm_control_to_gym_environment(config=self, environment=env)
             return env
+        return env
 
     @property
     def original_physics_timestep(
