@@ -86,7 +86,7 @@ class DMC2GymWrapper(gym.Wrapper):
         self._frame_width = frame_width
 
         self.action_space: gym.spaces.Box = _dm_control_array_spec_to_gym_box(
-                spec=env.action_spec(), dtype=np.float32
+                spec=self._env.action_spec(), dtype=np.float32
                 )
 
         if visual_observations:
@@ -95,7 +95,7 @@ class DMC2GymWrapper(gym.Wrapper):
                     )
         else:
             self.observation_space = _dm_control_spec_to_gym_space(
-                    spec=env.observation_spec(), dtype=np.float32
+                    spec=self._env.observation_spec(), dtype=np.float32
                     )
 
         self._camera_ids = camera_ids or [0]
@@ -103,12 +103,6 @@ class DMC2GymWrapper(gym.Wrapper):
         self._rendered_site_groups = rendered_site_groups or [1] * 6
 
         self.seed(seed)
-
-    def __getattr__(
-            self,
-            name: str
-            ) -> Any:
-        return getattr(self._env, name)
 
     def _get_obs(
             self,
