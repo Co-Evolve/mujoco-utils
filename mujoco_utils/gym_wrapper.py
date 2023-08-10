@@ -65,7 +65,7 @@ def extract_dict_observations_from_dm_control_timestep(
     return dict_obs
 
 
-class DMC2GymWrapper(gym.Wrapper):
+class DMC2GymWrapper:
     metadata = {"render.modes": ['rgb_array']}
 
     def __init__(
@@ -79,7 +79,7 @@ class DMC2GymWrapper(gym.Wrapper):
             rendered_geom_groups: List[int] | None = None,
             rendered_site_groups: List[int] | None = None
             ) -> None:
-        super().__init__(env)
+        self._env = env
 
         self._visual_observations = visual_observations
         self._frame_height = frame_height
@@ -108,7 +108,7 @@ class DMC2GymWrapper(gym.Wrapper):
             self,
             time_step: TimeStep
             ) -> ObsType:
-        if self._from_pixels:
+        if self._visual_observations:
             obs = self.render(height=self._frame_height, width=self._frame_width)
             obs = obs.transpose((2, 0, 1)).copy()
         else:
@@ -168,8 +168,8 @@ class DMC2GymWrapper(gym.Wrapper):
         width = width or self._frame_width
 
         scene_option = MjvOption()
-        scene_option.geomgroup = self.geomgroup
-        scene_option.sitegroup = self.sitegroup
+        scene_option.geomgroup = self._rendered_geom_groups
+        scene_option.sitegroup = self._rendered_site_groups
 
         frames = []
         for camera_id in camera_ids:
