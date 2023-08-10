@@ -32,7 +32,7 @@ def dm_control_to_gym_environment(
         environment: composer.Environment
         ) -> gym.Env:
     env = DMC2GymWrapper(
-            env=environment, camera_ids=config.camera_ids
+            env=environment, camera_ids=config.camera_ids, seed=config.seed
             )
     return env
 
@@ -41,12 +41,14 @@ class MJCEnvironmentConfig:
     def __init__(
             self,
             task: Callable[[MJCEnvironmentConfig, MJCMorphology], composer.Task],
+            seed: int = 42,
             time_scale: float = 1.0,
             control_substeps: int = 1,
             simulation_time: float = 10,
             camera_ids: List[int] | None = None
             ) -> None:
         self.task = task
+        self.seed = seed
         self.time_scale = time_scale
         self.control_substeps = control_substeps
         self.simulation_time = simulation_time
