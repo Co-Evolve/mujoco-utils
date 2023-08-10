@@ -1,4 +1,4 @@
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, Tuple
 
 import numpy as np
 from dm_control import mjcf
@@ -13,7 +13,7 @@ class ConfinedMJCFFeature(MJCFFeature):
             self,
             low: float,
             high: float,
-            num_obs_per_element: int,
+            shape: Iterable,
             kind: str,
             mjcf_element: mjcf.Element,
             update_interval: int = 1,
@@ -35,14 +35,14 @@ class ConfinedMJCFFeature(MJCFFeature):
                 )
         self._low = low
         self._high = high
-        self._num_obs_per_element = num_obs_per_element
+        self._shape = shape
 
     @property
     def array_spec(
             self
             ) -> specs.BoundedArray:
         return specs.BoundedArray(
-                shape=[self._num_obs_per_element * len(self._mjcf_element)],
+                shape=self._shape,
                 dtype=float,
                 minimum=self._low,
                 maximum=self._high
