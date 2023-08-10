@@ -71,6 +71,7 @@ class DMC2GymWrapper(gym.Wrapper):
     def __init__(
             self,
             env: dm_control.composer.Environment,
+            seed: int,
             visual_observations: bool = False,
             frame_height: int = 400,
             frame_width: int = 400,
@@ -79,7 +80,7 @@ class DMC2GymWrapper(gym.Wrapper):
             rendered_site_groups: List[int] | None = None
             ) -> None:
         super().__init__(env)
-        self.seed()
+        self.seed(seed)
 
         self._visual_observations = visual_observations
         self._frame_height = frame_height
@@ -123,11 +124,9 @@ class DMC2GymWrapper(gym.Wrapper):
 
     def seed(
             self,
-            seed: int = erpy_seed
+            seed: int
             ) -> None:
-
         self.action_space.seed(seed)
-
         self.observation_space.seed(seed)
 
     def step(
