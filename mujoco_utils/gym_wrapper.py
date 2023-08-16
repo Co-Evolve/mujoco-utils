@@ -183,3 +183,8 @@ class DMC2GymWrapper:
             return np.hstack(frames)
         else:
             return frames[0]
+
+    def close(
+            self
+            ) -> None:
+        self._env.close()
