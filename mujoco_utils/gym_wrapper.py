@@ -80,29 +80,39 @@ class DMC2GymWrapper:
             rendered_site_groups: List[int] | None = None
             ) -> None:
         self._env = env
-
         self._visual_observations = visual_observations
         self._frame_height = frame_height
         self._frame_width = frame_width
-
-        self.action_space: gym.spaces.Box = _dm_control_array_spec_to_gym_box(
-                spec=self._env.action_spec(), dtype=np.float32
-                )
-
-        if visual_observations:
-            self.observation_space = spaces.Box(
-                    low=0, high=255, shape=[3, self._frame_height, self._frame_width], dtype=np.uint8
-                    )
-        else:
-            self.observation_space = _dm_control_spec_to_gym_space(
-                    spec=self._env.observation_spec(), dtype=np.float32
-                    )
-
         self._camera_ids = camera_ids or [0]
         self._rendered_geom_groups = rendered_geom_groups or [1] * 6
         self._rendered_site_groups = rendered_site_groups or [1] * 6
 
         self.seed(seed)
+
+    @property
+    def unwrapped(self) -> dm_control.composer.Environment:
+        return self._env
+
+    @property
+    def action_space(
+            self
+            ) -> gym.spaces.Box:
+        return _dm_control_array_spec_to_gym_box(
+                spec=self._env.action_spec(), dtype=np.float32
+                )
+
+    @property
+    def observation_space(
+            self
+            ) -> gym.spaces.Dict | gym.spaces.Box:
+        if self._visual_observations:
+            return spaces.Box(
+                    low=0, high=255, shape=[3, self._frame_height, self._frame_width], dtype=np.uint8
+                    )
+        else:
+            return _dm_control_spec_to_gym_space(
+                    spec=self._env.observation_spec(), dtype=np.float32
+                    )
 
     def _get_obs(
             self,
