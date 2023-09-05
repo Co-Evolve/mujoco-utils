@@ -88,31 +88,39 @@ class DMC2GymWrapper:
         self._rendered_site_groups = rendered_site_groups or [1] * 6
 
         self.seed(seed)
+        self._action_space = None
+        self._observation_space = None
 
     @property
-    def unwrapped(self) -> dm_control.composer.Environment:
+    def unwrapped(
+            self
+            ) -> dm_control.composer.Environment:
         return self._env
 
     @property
     def action_space(
             self
             ) -> gym.spaces.Box:
-        return _dm_control_array_spec_to_gym_box(
-                spec=self._env.action_spec(), dtype=np.float32
-                )
+        if not self._action_space:
+            self._action_space = _dm_control_array_spec_to_gym_box(
+                    spec=self._env.action_spec(), dtype=np.float32
+                    )
+        return self._action_space
 
     @property
     def observation_space(
             self
             ) -> gym.spaces.Dict | gym.spaces.Box:
-        if self._visual_observations:
-            return spaces.Box(
-                    low=0, high=255, shape=[3, self._frame_height, self._frame_width], dtype=np.uint8
-                    )
-        else:
-            return _dm_control_spec_to_gym_space(
-                    spec=self._env.observation_spec(), dtype=np.float32
-                    )
+        if not self._observation_space:
+            if self._visual_observations:
+                self._observation_space = spaces.Box(
+                        low=0, high=255, shape=[3, self._frame_height, self._frame_width], dtype=np.uint8
+                        )
+            else:
+                self._observation_space = _dm_control_spec_to_gym_space(
+                        spec=self._env.observation_spec(), dtype=np.float32
+                        )
+        return self._observation_space
 
     def _get_obs(
             self,
@@ -161,6 +169,8 @@ class DMC2GymWrapper:
             options: dict[str, Any] | None = None
             ) -> tuple[ObsType, dict[str, Any]]:
         time_step = self._env.reset()
+        self._action_space = None
+        self._observation_space = None
         self.seed(seed)
         obs = self._get_obs(time_step)
         return obs, {}
