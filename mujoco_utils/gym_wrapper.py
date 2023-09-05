@@ -87,9 +87,9 @@ class DMC2GymWrapper:
         self._rendered_geom_groups = rendered_geom_groups or [1] * 6
         self._rendered_site_groups = rendered_site_groups or [1] * 6
 
-        self.seed(seed)
         self._action_space = None
         self._observation_space = None
+        self.seed(seed)
 
     @property
     def unwrapped(
