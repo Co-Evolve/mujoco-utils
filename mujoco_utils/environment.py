@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import abc
 from typing import Callable, List
 
 import dm_control.composer
 import gymnasium as gym
 import numpy as np
 from dm_control import composer
-from fprs import frps_random_state
+from fprs import fprs_random_state
 
 from mujoco_utils.gym_wrapper import DMC2GymWrapper
 from mujoco_utils.robot import MJCMorphology
@@ -22,7 +21,7 @@ def default_make_mjc_env(
             control_timestep=config.control_timestep, physics_timestep=config.physics_timestep
             )
     env = composer.Environment(
-            task=task, random_state=frps_random_state, time_limit=config.simulation_time
+            task=task, random_state=fprs_random_state, time_limit=config.simulation_time
             )
     return env
 
