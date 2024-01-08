@@ -320,8 +320,10 @@ class MJXGymEnvWrapper:
             self.action_space = batch_space(self.single_action_space, num_envs)
             self.observation_space = batch_space(self.single_observation_space, num_envs)
         else:
-            self.action_space = env.action_space
-            self.observation_space = env.observation_space
+            self.single_action_space: gymnasium.spaces.Box = env.action_space
+            self.single_observation_space: gymnasium.spaces.Dict = env.observation_space
+            self.action_space = self.single_action_space
+            self.observation_space = self.single_observation_space
 
     @property
     def mjx_environment(
