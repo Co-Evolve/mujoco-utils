@@ -5,7 +5,6 @@ fprs @ git+https://github.com/Co-Evolve/fprs@40ee809ca6ba15e66961d2153ee86e83550
 glfw==2.6.4
 gymnasium==0.29.1
 imageio==2.33.1
-jax==0.4.23
 mujoco==3.1.1
 mujoco_mjx==3.1.1
 numpy==1.26.3
