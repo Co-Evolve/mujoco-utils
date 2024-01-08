@@ -130,8 +130,7 @@ class BaseMJXEnv(BaseMuJoCoEnvironment, ABC):
 
     def render(
             self,
-            state: MJXState,
-            target_environment_indices: Optional[List[int]] = None
+            state: MJXState
             ) -> RenderFrame | list[RenderFrame] | list[list[RenderFrame]] | None:
         # need to update renderer's model and data (we updated stuff in mjx model that should be in the data)
         # If we are in batch mode,
@@ -143,8 +142,6 @@ class BaseMJXEnv(BaseMuJoCoEnvironment, ABC):
             batch_size = state.reward.shape[0]
         except IndexError:
             batch_size = 1
-
-        target_environment_indices = set(target_environment_indices or range(batch_size))
 
         if self.environment_configuration.render_mode == "human":
             mj_models = mjx_get_model(mj_model=self.mj_model, mjx_model=state.mjx_model, n_mj_models=1)
@@ -161,9 +158,6 @@ class BaseMJXEnv(BaseMuJoCoEnvironment, ABC):
 
         frames_per_env = []
         for i, (m, d) in enumerate(zip(mj_models, mj_datas)):
-            if i not in target_environment_indices:
-                continue
-
             mujoco.mj_forward(m=m, d=d)
             renderer = self.get_renderer(
                     identifier=i, mj_model=m, mj_data=d
@@ -366,8 +360,9 @@ class MJXGymEnvWrapper:
         """Steps through the environment with action."""
         self._mjx_state = self._jit_step(self._mjx_state, actions)
 
-        return (self._mjx_state.observations, self._mjx_state.reward, self._mjx_state.terminated,
-                self._mjx_state.truncated, self._mjx_state.info)
+        return (
+        self._mjx_state.observations, self._mjx_state.reward, self._mjx_state.terminated, self._mjx_state.truncated,
+        self._mjx_state.info)
 
     def reset(
             self,
