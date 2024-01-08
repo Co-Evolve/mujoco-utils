@@ -11,7 +11,7 @@ with open('requirements.txt') as f:
 
 setup(
     name='mujoco_utils',
-    version='0.1.0',
+    version='0.2.0',
     description='Utilities for interfacing with MuJoCo through dm_control.',
     long_description=readme,
     url='https://github.com/Co-Evolve/mujoco-utils',
