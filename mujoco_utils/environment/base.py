@@ -190,6 +190,10 @@ class BaseMuJoCoEnvironment(abc.ABC):
             self
             ) -> None:
         self._close_renderers()
+        del self._mj_model
+        del self._mj_data
+        del self.observation_space
+        del self.action_space
 
 
 class BaseWithArenaAndMorphology(abc.ABC):

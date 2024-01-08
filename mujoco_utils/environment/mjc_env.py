@@ -117,6 +117,12 @@ class BaseMJCEnv(BaseMuJoCoEnvironment, gymnasium.Env, ABC):
                 frames.append(frame)
             return frames[0] if len(camera_ids) == 1 else frames
 
+    def close(
+            self
+            ) -> None:
+        super().close()
+        del self._observables
+
     @abc.abstractmethod
     def step(
             self,

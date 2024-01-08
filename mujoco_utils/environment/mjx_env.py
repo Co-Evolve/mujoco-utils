@@ -263,6 +263,14 @@ class BaseMJXEnv(BaseMuJoCoEnvironment, ABC):
             ) -> str:
         return "mjx"
 
+    def close(
+            self
+            ) -> None:
+        super().close()
+        del self._observables
+        del self._mjx_model
+        del self._mjx_data
+
     @abc.abstractmethod
     def step(
             self,
