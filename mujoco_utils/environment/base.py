@@ -17,7 +17,6 @@ class MuJoCoEnvironmentConfiguration:
 
     def __init__(
             self,
-            seed: int = 42,
             time_scale: float = 1.0,
             num_physics_steps_per_control_step: int = 1,
             simulation_time: float = 10,
@@ -25,7 +24,6 @@ class MuJoCoEnvironmentConfiguration:
             render_size: Tuple[int, int] | None = (240, 320),
             render_mode: Optional[str] = None
             ) -> None:
-        self.seed = seed
         self.time_scale = time_scale
         self.num_physics_steps_per_control_step = num_physics_steps_per_control_step
         self.simulation_time = simulation_time
