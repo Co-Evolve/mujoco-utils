@@ -1,7 +1,7 @@
 brax==0.9.4
 dm_control==1.0.16
 flax==0.7.5
-fprs==0.1.0
+fprs @ git+https://github.com/Co-Evolve/fprs@40ee809ca6ba15e66961d2153ee86e83550592c1
 glfw==2.6.4
 gymnasium==0.29.1
 imageio==2.33.1
