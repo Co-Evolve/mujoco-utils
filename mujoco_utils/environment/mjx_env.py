@@ -313,15 +313,12 @@ class MJXGymEnvWrapper:
         self._mjx_state: Optional[MJXState] = None
         self._rng = jax.random.PRNGKey(seed=42)
 
+        self.single_action_space: gymnasium.spaces.Box = env.action_space
+        self.single_observation_space: gymnasium.spaces.Dict = env.observation_space
         if self._num_envs > 1:
-            self.single_action_space: gymnasium.spaces.Box = env.action_space
-            self.single_observation_space: gymnasium.spaces.Dict = env.observation_space
-
             self.action_space = batch_space(self.single_action_space, num_envs)
             self.observation_space = batch_space(self.single_observation_space, num_envs)
         else:
-            self.single_action_space: gymnasium.spaces.Box = env.action_space
-            self.single_observation_space: gymnasium.spaces.Dict = env.observation_space
             self.action_space = self.single_action_space
             self.observation_space = self.single_observation_space
 
