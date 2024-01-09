@@ -323,12 +323,18 @@ class MJXGymEnvWrapper:
 
         self.single_action_space: gymnasium.spaces.Box = env.action_space
         self.single_observation_space: gymnasium.spaces.Dict = env.observation_space
-        if self._num_envs > 1:
-            self.action_space = batch_space(self.single_action_space, num_envs)
-            self.observation_space = batch_space(self.single_observation_space, num_envs)
+        if self.number_of_environments > 1:
+            self.action_space = batch_space(self.single_action_space, self.number_of_environments)
+            self.observation_space = batch_space(self.single_observation_space, self.number_of_environments)
         else:
             self.action_space = self.single_action_space
             self.observation_space = self.single_observation_space
+
+    @property
+    def number_of_environments(
+            self
+            ) -> int:
+        return self._num_envs
 
     @property
     def mjx_environment(
@@ -340,7 +346,7 @@ class MJXGymEnvWrapper:
             self,
             fn: Callable
             ) -> Callable:
-        if self._num_envs > 1:
+        if self.number_of_environments > 1:
             fn = jax.vmap(fn)
         return jax.jit(fn)
 
@@ -379,9 +385,9 @@ class MJXGymEnvWrapper:
         """Resets the environment with kwargs."""
         if seed is not None:
             self._rng = jax.random.PRNGKey(seed=seed)
-        self._rng, *sub_rngs = jax.random.split(key=self._rng, num=self._num_envs + 1)
+        self._rng, *sub_rngs = jax.random.split(key=self._rng, num=self.number_of_environments + 1)
         sub_rngs = jnp.array(sub_rngs)
-        if self._num_envs == 1:
+        if self.number_of_environments == 1:
             sub_rngs = sub_rngs[0]
 
         self._mjx_state = self._jit_reset(sub_rngs)
