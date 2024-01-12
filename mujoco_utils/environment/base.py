@@ -178,12 +178,13 @@ class BaseMuJoCoEnvironment(abc.ABC):
             self._renderers[identifier] = renderer
         return self._renderers[identifier]
 
-    @staticmethod
     def get_renderer_context(
+            self,
             renderer: Union[MujocoRenderer, mujoco.Renderer]
             ) -> mujoco.MjrContext:
         try:
-            context = renderer.viewer.con
+            # noinspection PyProtectedMember
+            context = renderer._get_viewer(render_mode=self.environment_configuration.render_mode).con
         except AttributeError:
             # noinspection PyProtectedMember
             context = renderer._mjr_context
