@@ -178,17 +178,16 @@ class BaseMuJoCoEnvironment(abc.ABC):
             self._renderers[identifier] = renderer
         return self._renderers[identifier]
 
-    def get_renderer_contexts(
-            self
-            ) -> List[mujoco.MjrContext]:
-        contexts = []
-        for renderer in self._renderers.values():
-            if self.environment_configuration.render_mode == "human":
-                context = renderer.viewer.con
-            else:
-                context = renderer._mjr_context
-            contexts.append(context)
-        return contexts
+    @staticmethod
+    def get_renderer_context(
+            renderer: Union[MujocoRenderer, mujoco.Renderer]
+            ) -> mujoco.MjrContext:
+        try:
+            context = renderer.viewer.con
+        except AttributeError:
+            # noinspection PyProtectedMember
+            context = renderer._mjr_context
+        return context
 
     def _close_renderers(
             self

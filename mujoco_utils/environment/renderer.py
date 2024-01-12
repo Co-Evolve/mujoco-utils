@@ -553,9 +553,8 @@ class WindowViewer(BaseRender):
             return
 
         mod_shift = (glfw.get_key(window, glfw.KEY_LEFT_SHIFT) == glfw.PRESS or glfw.get_key(
-            window,
-            glfw.KEY_RIGHT_SHIFT
-            ) == glfw.PRESS)
+                window, glfw.KEY_RIGHT_SHIFT
+                ) == glfw.PRESS)
         if self._button_right_pressed:
             action = (mujoco.mjtMouse.mjMOUSE_MOVE_H if mod_shift else mujoco.mjtMouse.mjMOUSE_MOVE_V)
         elif self._button_left_pressed:

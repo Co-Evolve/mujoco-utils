@@ -106,8 +106,7 @@ class BaseMJCEnv(BaseMuJoCoEnvironment, gymnasium.Env, ABC):
         camera_ids = self.environment_configuration.camera_ids or [-1]
         if self.environment_configuration.render_mode == "human":
             return self.get_renderer().render(
-                    render_mode="human",
-                    camera_id=camera_ids[0]
+                    render_mode="human", camera_id=camera_ids[0]
                     )
         else:
             frames = []
@@ -149,4 +148,5 @@ class MJCEnv(BaseWithArenaAndMorphology, BaseMJCEnv, ABC):
             ) -> None:
         BaseWithArenaAndMorphology.__init__(self=self, morphology=morphology, arena=arena)
         BaseMJCEnv.__init__(
-                self=self, mjcf_str=self._mjcf_str, mjcf_assets=self._mjcf_assets, configuration=configuration)
+                self=self, mjcf_str=self._mjcf_str, mjcf_assets=self._mjcf_assets, configuration=configuration
+                )

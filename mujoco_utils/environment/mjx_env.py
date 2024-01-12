@@ -373,9 +373,8 @@ class MJXGymEnvWrapper:
         """Steps through the environment with action."""
         self._mjx_state = self._jit_step(self._mjx_state, actions)
 
-        return (
-        self._mjx_state.observations, self._mjx_state.reward, self._mjx_state.terminated, self._mjx_state.truncated,
-        self._mjx_state.info)
+        return (self._mjx_state.observations, self._mjx_state.reward, self._mjx_state.terminated,
+                self._mjx_state.truncated, self._mjx_state.info)
 
     def reset(
             self,
