@@ -128,6 +128,36 @@ class BaseMJXEnv(BaseMuJoCoEnvironment, ABC):
             ) -> Tuple[mjx.Model, mjx.Data]:
         return mjx.put_model(m=self.mj_model), mjx.put_data(m=self.mj_model, d=self.mj_data)
 
+    def _get_batch_size(
+            self,
+            state: MJXState
+            ) -> int:
+        try:
+            return state.reward.shape[0]
+        except IndexError:
+            return 1
+
+    def _get_mj_model_and_data_to_render(
+            self,
+            state: MJXState
+            ) -> Tuple[List[mujoco.MjModel], List[mujoco.MjData]]:
+
+        if self.environment_configuration.render_mode == "human":
+            mj_models = mjx_get_model(mj_model=self.mj_model, mjx_model=state.mjx_model, n_mj_models=1)
+            mj_datas = mjx.get_data(m=mj_models[0], d=state.mjx_data)
+            if not isinstance(mj_datas, list):
+                mj_datas = [mj_datas]
+            else:
+                mj_datas = [mj_datas[0]]
+        else:
+            mj_models = mjx_get_model(
+                    mj_model=self.mj_model, mjx_model=state.mjx_model, n_mj_models=self._get_batch_size(state=state)
+                    )
+            mj_datas = mjx.get_data(m=self.mj_model, d=state.mjx_data)
+            if not isinstance(mj_datas, list):
+                mj_datas = [mj_datas]
+        return mj_models, mj_datas
+
     def render(
             self,
             state: MJXState
@@ -138,23 +168,7 @@ class BaseMJXEnv(BaseMuJoCoEnvironment, ABC):
         #   rgb_array mode will render a frame for every environment
         camera_ids = self.environment_configuration.camera_ids or [-1]
 
-        try:
-            batch_size = state.reward.shape[0]
-        except IndexError:
-            batch_size = 1
-
-        if self.environment_configuration.render_mode == "human":
-            mj_models = mjx_get_model(mj_model=self.mj_model, mjx_model=state.mjx_model, n_mj_models=1)
-            mj_datas = mjx.get_data(m=mj_models[0], d=state.mjx_data)
-            if not isinstance(mj_datas, list):
-                mj_datas = [mj_datas]
-            else:
-                mj_datas = [mj_datas[0]]
-        else:
-            mj_models = mjx_get_model(mj_model=self.mj_model, mjx_model=state.mjx_model, n_mj_models=batch_size)
-            mj_datas = mjx.get_data(m=self.mj_model, d=state.mjx_data)
-            if not isinstance(mj_datas, list):
-                mj_datas = [mj_datas]
+        mj_models, mj_datas = self._get_mj_model_and_data_to_render(state=state)
 
         frames_per_env = []
         for i, (m, d) in enumerate(zip(mj_models, mj_datas)):
@@ -183,7 +197,7 @@ class BaseMJXEnv(BaseMuJoCoEnvironment, ABC):
                 frames = frames[0] if len(camera_ids) == 1 else frames
                 frames_per_env.append(frames)
 
-        return frames_per_env if batch_size > 1 else frames_per_env[0]
+        return frames_per_env if self._get_batch_size(state=state) > 1 else frames_per_env[0]
 
     def _initialize_mjx_data(
             self,
@@ -373,8 +387,9 @@ class MJXGymEnvWrapper:
         """Steps through the environment with action."""
         self._mjx_state = self._jit_step(self._mjx_state, actions)
 
-        return (self._mjx_state.observations, self._mjx_state.reward, self._mjx_state.terminated,
-                self._mjx_state.truncated, self._mjx_state.info)
+        return (
+        self._mjx_state.observations, self._mjx_state.reward, self._mjx_state.terminated, self._mjx_state.truncated,
+        self._mjx_state.info)
 
     def reset(
             self,
