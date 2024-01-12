@@ -67,7 +67,7 @@ class BaseObservable:
             name: str,
             low: ArrayType,
             high: ArrayType,
-            retriever: Callable[[ModelType, DataType], ArrayType]
+            retriever: Callable[[ModelType, DataType, Any, Any], ArrayType]
             ) -> None:
         self.name = name
         self.low = low
@@ -77,9 +77,13 @@ class BaseObservable:
     def __call__(
             self,
             model: ModelType,
-            data: DataType
+            data: DataType,
+            *args,
+            **kwargs
             ) -> ArrayType:
-        return self.retriever(model, data)
+        return self.retriever(
+                model, data, *args, **kwargs
+                )
 
     @property
     def shape(

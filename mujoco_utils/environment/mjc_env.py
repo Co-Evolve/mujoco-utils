@@ -19,16 +19,18 @@ class MJCObservable(BaseObservable):
             name: str,
             low: np.ndarray,
             high: np.ndarray,
-            retriever: Callable[[mujoco.MjModel, mujoco.MjData], np.ndarray]
+            retriever: Callable[[mujoco.MjModel, mujoco.MjData, Any, Any], np.ndarray]
             ) -> None:
         super().__init__(name=name, low=low, high=high, retriever=retriever)
 
     def __call__(
             self,
             mj_model: mujoco.MjModel,
-            mj_data: mujoco.MjData
+            mj_data: mujoco.MjData,
+            *args,
+            **kwargs
             ) -> np.ndarray:
-        return super().__call__(model=mj_model, data=mj_data)
+        return super().__call__(model=mj_model, data=mj_data, *args, **kwargs)
 
 
 class BaseMJCEnv(BaseMuJoCoEnvironment, gymnasium.Env, ABC):
@@ -76,12 +78,14 @@ class BaseMJCEnv(BaseMuJoCoEnvironment, gymnasium.Env, ABC):
         return gymnasium.spaces.Dict(observation_space)
 
     def _get_observations(
-            self
+            self,
+            *args,
+            **kwargs
             ) -> Dict[str, np.ndarray]:
         observations = dict()
         for observable in self.observables:
             observations[observable.name] = observable(
-                    mj_model=self.mj_model, mj_data=self.mj_data
+                    mj_model=self.mj_model, mj_data=self.mj_data, *args, **kwargs
                     )
         return observations
 

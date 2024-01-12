@@ -82,16 +82,20 @@ class MJXObservable(BaseObservable):
             name: str,
             low: jnp.ndarray,
             high: jnp.ndarray,
-            retriever: Callable[[mjx.Model, mjx.Data], jnp.ndarray]
+            retriever: Callable[[mjx.Model, mjx.Data, Any, Any], jnp.ndarray]
             ) -> None:
         super().__init__(name=name, low=low, high=high, retriever=retriever)
 
     def __call__(
             self,
             mjx_model: mjx.Model,
-            mjx_data: mjx.Data
+            mjx_data: mjx.Data,
+            *args,
+            **kwargs
             ) -> np.ndarray:
-        return super().__call__(model=mjx_model, data=mjx_data)
+        return super().__call__(
+                model=mjx_model, data=mjx_data, *args, **kwargs
+                )
 
 
 class BaseMJXEnv(BaseMuJoCoEnvironment, ABC):
@@ -244,12 +248,14 @@ class BaseMJXEnv(BaseMuJoCoEnvironment, ABC):
     def _get_observations(
             self,
             mjx_model: mjx.Model,
-            mjx_data: mjx.Data
+            mjx_data: mjx.Data,
+            *args,
+            **kwargs
             ) -> Dict[str, jnp.ndarray]:
         observations = jax.tree_util.tree_map(
                 lambda
                     observable: (observable.name, observable(
-                        mjx_model=mjx_model, mjx_data=mjx_data
+                        mjx_model=mjx_model, mjx_data=mjx_data, *args, **kwargs
                         )), self.observables
                 )
         return dict(observations)
@@ -387,8 +393,9 @@ class MJXGymEnvWrapper:
         """Steps through the environment with action."""
         self._mjx_state = self._jit_step(self._mjx_state, actions)
 
-        return (self._mjx_state.observations, self._mjx_state.reward, self._mjx_state.terminated,
-                self._mjx_state.truncated, self._mjx_state.info)
+        return (
+        self._mjx_state.observations, self._mjx_state.reward, self._mjx_state.terminated, self._mjx_state.truncated,
+        self._mjx_state.info)
 
     def reset(
             self,
