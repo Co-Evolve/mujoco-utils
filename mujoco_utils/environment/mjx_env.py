@@ -137,7 +137,7 @@ class BaseMJXEnv(BaseMuJoCoEnvironment, ABC):
         except IndexError:
             return 1
 
-    def _get_mj_model_and_data_to_render(
+    def _get_mj_models_and_datas_to_render(
             self,
             state: MJXState
             ) -> Tuple[List[mujoco.MjModel], List[mujoco.MjData]]:
@@ -168,7 +168,7 @@ class BaseMJXEnv(BaseMuJoCoEnvironment, ABC):
         #   rgb_array mode will render a frame for every environment
         camera_ids = self.environment_configuration.camera_ids or [-1]
 
-        mj_models, mj_datas = self._get_mj_model_and_data_to_render(state=state)
+        mj_models, mj_datas = self._get_mj_models_and_datas_to_render(state=state)
 
         frames_per_env = []
         for i, (m, d) in enumerate(zip(mj_models, mj_datas)):
@@ -387,9 +387,8 @@ class MJXGymEnvWrapper:
         """Steps through the environment with action."""
         self._mjx_state = self._jit_step(self._mjx_state, actions)
 
-        return (
-        self._mjx_state.observations, self._mjx_state.reward, self._mjx_state.terminated, self._mjx_state.truncated,
-        self._mjx_state.info)
+        return (self._mjx_state.observations, self._mjx_state.reward, self._mjx_state.terminated,
+                self._mjx_state.truncated, self._mjx_state.info)
 
     def reset(
             self,
