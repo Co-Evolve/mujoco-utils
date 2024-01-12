@@ -174,7 +174,7 @@ class BaseMJXEnv(BaseMuJoCoEnvironment, ABC):
         for i, (m, d) in enumerate(zip(mj_models, mj_datas)):
             mujoco.mj_forward(m=m, d=d)
             renderer = self.get_renderer(
-                    identifier=i, mj_model=m, mj_data=d
+                    identifier=i, mj_model=m, mj_data=d, state=state
                     )
 
             if self.environment_configuration.render_mode == "human":

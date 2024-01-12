@@ -162,7 +162,9 @@ class BaseMuJoCoEnvironment(abc.ABC):
             self,
             identifier: int = 0,
             mj_model: Optional[mujoco.MjModel] = None,
-            mj_data: Optional[mujoco.MjData] = None
+            mj_data: Optional[mujoco.MjData] = None,
+            *args,
+            **kwargs
             ) -> Union[MujocoRenderer, mujoco.Renderer]:
         if identifier not in self._renderers:
             if self.environment_configuration.render_mode == "human":
