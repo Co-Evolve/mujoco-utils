@@ -167,9 +167,7 @@ class BaseMuJoCoEnvironment(abc.ABC):
         if identifier not in self._renderers:
             if self.environment_configuration.render_mode == "human":
                 renderer = MujocoRenderer(
-                        model=mj_model or self.mj_model,
-                        data=mj_data or self.mj_data,
-                        default_cam_config=None
+                        model=mj_model or self.mj_model, data=mj_data or self.mj_data, default_cam_config=None
                         )
             else:
                 renderer = mujoco.Renderer(
@@ -179,6 +177,18 @@ class BaseMuJoCoEnvironment(abc.ABC):
                         )
             self._renderers[identifier] = renderer
         return self._renderers[identifier]
+
+    def get_renderer_contexts(
+            self
+            ) -> List[mujoco.MjrContext]:
+        contexts = []
+        for renderer in self._renderers.values():
+            if self.environment_configuration.render_mode == "human":
+                context = renderer.viewer.con
+            else:
+                context = renderer._mjr_context
+            contexts.append(context)
+        return contexts
 
     def _close_renderers(
             self
