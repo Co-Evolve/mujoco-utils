@@ -1,2 +1,2 @@
 # mujoco-utils
-Utilities for interfacing with MuJoCo through dm-control.
+Framework and utilities for interfacing with MuJoCo and MuJoCo-XLA.
