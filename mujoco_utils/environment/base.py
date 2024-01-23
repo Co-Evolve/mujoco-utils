@@ -1,12 +1,17 @@
+from __future__ import annotations
+
 import abc
+import dataclasses
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-import jax.numpy
+import chex
+import gymnasium
 import mujoco
 import numpy as np
-from gymnasium import Space
+from gymnasium.core import RenderFrame
 from mujoco import mjx
 
+import mujoco_utils.environment.mjx_spaces as mjx_spaces
 from mujoco_utils.arena import MJCFArena
 from mujoco_utils.environment.renderer import MujocoRenderer
 from mujoco_utils.morphology import MJCFMorphology
@@ -56,18 +61,20 @@ class MuJoCoEnvironmentConfiguration:
         return int(np.ceil(self.simulation_time / self.physics_timestep))
 
 
-ArrayType = Union[np.ndarray, jax.numpy.ndarray]
 ModelType = Union[mujoco.MjModel, mjx.Model]
 DataType = Union[mujoco.MjData, mjx.Data]
+SpaceType = Union[gymnasium.spaces.Space, mjx_spaces.Space]
+BoxSpaceType = Union[gymnasium.spaces.Box, mjx_spaces.Box]
+DictSpaceType = Union[gymnasium.spaces.Dict, mjx_spaces.Dict]
 
 
 class BaseObservable:
     def __init__(
             self,
             name: str,
-            low: ArrayType,
-            high: ArrayType,
-            retriever: Callable[[ModelType, DataType, Any, Any], ArrayType]
+            low: chex.Array,
+            high: chex.Array,
+            retriever: Callable[[ModelType, DataType, Any, Any], chex.Array]
             ) -> None:
         self.name = name
         self.low = low
@@ -80,7 +87,7 @@ class BaseObservable:
             data: DataType,
             *args,
             **kwargs
-            ) -> ArrayType:
+            ) -> chex.Array:
         return self.retriever(
                 model, data, *args, **kwargs
                 )
@@ -92,7 +99,21 @@ class BaseObservable:
         return self.low.shape
 
 
+@dataclasses.dataclass
+class BaseEnvState(abc.ABC):
+    model: ModelType
+    data: DataType
+    observations: Dict[str, chex.Array]
+    reward: chex.Array
+    terminated: chex.Array
+    truncated: chex.Array
+    info: Dict[str, Any]
+    rng: chex.Array
+
+
 class BaseMuJoCoEnvironment(abc.ABC):
+    box_space: BoxSpaceType = None
+    dict_space: DictSpaceType = None
     metadata = {"render_modes": []}
 
     def __init__(
@@ -110,12 +131,25 @@ class BaseMuJoCoEnvironment(abc.ABC):
 
         self._mj_model, self._mj_data = self._initialize_mj_model_and_data()
 
-        self.action_space: Optional[Space] = None
-        self.observation_space: Optional[Space] = None
-
         assert configuration.render_mode is None or self.environment_configuration.render_mode in self.metadata[
             "render_modes"], (f"Unsupported render mode: '{self.environment_configuration.render_mode}'. Must be one "
                               f"of {self.metadata['render_modes']}")
+
+        self._observables: Optional[List[BaseObservable]] = self._create_observables()
+        self._action_space: Optional[BoxSpaceType] = self._create_action_space()
+        self._observation_space: Optional[DictSpaceType] = self._create_observation_space()
+
+    @staticmethod
+    def from_morphology_and_arena(
+            morphology: MJCFMorphology,
+            arena: MJCFArena,
+            configuration: MuJoCoEnvironmentConfiguration
+            ) -> BaseMuJoCoEnvironment:
+        arena.attach(other=morphology, free_joint=True)
+        mjcf_str, mjcf_assets = arena.get_mjcf_str(), arena.get_mjcf_assets()
+        return BaseMuJoCoEnvironment(
+                mjcf_str=mjcf_str, mjcf_assets=mjcf_assets, configuration=configuration
+                )
 
     @property
     def environment_configuration(
@@ -141,17 +175,17 @@ class BaseMuJoCoEnvironment(abc.ABC):
             ) -> List[str]:
         return [self.mj_model.actuator(i).name for i in range(self.mj_model.nu)]
 
-    @abc.abstractmethod
-    def _get_observation_space(
+    @property
+    def action_space(
             self
-            ) -> Space:
-        raise NotImplementedError
+            ) -> SpaceType:
+        return self._action_space
 
-    @abc.abstractmethod
-    def _get_action_space(
+    @property
+    def observation_space(
             self
-            ) -> Space:
-        raise NotImplementedError
+            ) -> SpaceType:
+        return self.observation_space
 
     def _initialize_mj_model_and_data(
             self
@@ -164,11 +198,10 @@ class BaseMuJoCoEnvironment(abc.ABC):
 
     def get_renderer(
             self,
-            identifier: int = 0,
-            mj_model: Optional[mujoco.MjModel] = None,
-            mj_data: Optional[mujoco.MjData] = None,
-            *args,
-            **kwargs
+            identifier: int,
+            mj_model: mujoco.MjModel,
+            mj_data: mujoco.MjData,
+            state: BaseEnvState
             ) -> Union[MujocoRenderer, mujoco.Renderer]:
         if identifier not in self._renderers:
             if self.environment_configuration.render_mode == "human":
@@ -196,6 +229,46 @@ class BaseMuJoCoEnvironment(abc.ABC):
             context = renderer._mjr_context
         return context
 
+    @abc.abstractmethod
+    def _get_mj_models_and_datas_to_render(
+            self,
+            state: BaseEnvState
+            ) -> Tuple[List[mujoco.MjModel], List[mujoco.MjData]]:
+        raise NotImplementedError
+
+    def render(
+            self,
+            state: BaseEnvState
+            ) -> List[RenderFrame] | None:
+        camera_ids = self.environment_configuration.camera_ids or [-1]
+
+        mj_models, mj_datas = self._get_mj_models_and_datas_to_render(state=state)
+
+        frames = []
+        for i, (model, data) in enumerate(zip(mj_models, mj_datas)):
+            mujoco.mj_forward(m=model, d=data)
+            renderer = self.get_renderer(
+                    identifier=i, mj_model=model, mj_data=data, state=state
+                    )
+
+            if self.environment_configuration.render_mode == "human":
+                viewer = renderer._get_viewer("human")
+                viewer.model = model
+                viewer.data = data
+
+                return renderer.render(
+                        render_mode="human", camera_id=camera_ids[0]
+                        )
+            else:
+                for camera_id in camera_ids:
+                    renderer.update_scene(
+                            data=data, camera=camera_id
+                            )
+                    frame = renderer.render()[:, :, ::-1]
+                    frames.append(frame)
+
+        return frames
+
     def _close_renderers(
             self
             ) -> None:
@@ -208,29 +281,98 @@ class BaseMuJoCoEnvironment(abc.ABC):
         self._close_renderers()
         del self._mj_model
         del self._mj_data
-        del self.observation_space
-        del self.action_space
+        del self._observation_space
+        del self._action_space
+        del self._observables
 
-
-class BaseWithArenaAndMorphology(abc.ABC):
-    def __init__(
+    @abc.abstractmethod
+    def _forward_simulation(
             self,
-            morphology: MJCFMorphology,
-            arena: MJCFArena
-            ) -> None:
-        self._morphology = morphology
-        self._arena = arena
-        self.arena.attach(other=self.morphology, free_joint=True)
-        self._mjcf_str, self._mjcf_assets = arena.get_mjcf_str(), arena.get_mjcf_assets()
+            model: ModelType,
+            data: DataType,
+            ctrl: chex.Array
+            ) -> DataType:
+        raise NotImplementedError
 
-    @property
-    def morphology(
+    @abc.abstractmethod
+    def _create_observation_space(
             self
-            ) -> MJCFMorphology:
-        return self._morphology
+            ) -> DictSpaceType:
+        raise NotImplementedError
 
-    @property
-    def arena(
+    @abc.abstractmethod
+    def _get_observations(
+            self,
+            model: ModelType,
+            data: DataType,
+            *args,
+            **kwargs
+            ) -> Dict[str, chex.Array]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _create_action_space(
             self
-            ) -> MJCFArena:
-        return self._arena
+            ) -> BoxSpaceType:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def step(
+            self,
+            state: BaseEnvState,
+            action: chex.Array
+            ) -> BaseEnvState:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def reset(
+            self,
+            rng: chex.Array
+            ) -> BaseEnvState:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _create_observables(
+            self
+            ) -> List[BaseObservable]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _get_reward(
+            self,
+            model: ModelType,
+            data: DataType,
+            *args,
+            **kwargs
+            ) -> float:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _should_terminate(
+            self,
+            model: ModelType,
+            data: DataType,
+            *args,
+            **kwargs
+            ) -> float:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _should_truncate(
+            self,
+            model: ModelType,
+            data: DataType,
+            *args,
+            **kwargs
+            ) -> float:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _get_info(
+            self,
+            model: ModelType,
+            data: DataType,
+            *args,
+            **kwargs
+            ) -> Dict[str, Any]:
+        raise NotImplementedError

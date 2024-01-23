@@ -1,9 +1,9 @@
 import abc
 import copy
 from abc import ABC
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Tuple
 
-import gymnasium
+import chex
 import jax
 import jax.numpy as jnp
 import mujoco
@@ -11,26 +11,20 @@ import numpy as np
 from brax.base import Base
 from flax import struct
 from gymnasium import spaces
-from gymnasium.core import ActType, ObsType, RenderFrame
-from gymnasium.vector.utils import batch_space
 from mujoco import mjx
 
-from mujoco_utils.arena import MJCFArena
-from mujoco_utils.environment.base import BaseMuJoCoEnvironment, BaseObservable, BaseWithArenaAndMorphology, \
+import mujoco_utils.environment.mjx_spaces as mjx_spaces
+from mujoco_utils.environment.base import BaseEnvState, BaseMuJoCoEnvironment, BaseObservable, \
     MuJoCoEnvironmentConfiguration
-from mujoco_utils.morphology import MJCFMorphology
 
 
 def mjx_get_model(
         mj_model: mujoco.MjModel,
         mjx_model: mjx.Model,
         n_mj_models: int = 1
-        ) -> Union[List[mujoco.MjModel], mujoco.MjModel]:
+        ) -> List[mujoco.MjModel]:
     """
     Transfer mjx.Model to mujoco.MjModel
-    :param result:
-    :param value:
-    :return:
     """
     mj_models = [copy.deepcopy(mj_model) for _ in range(n_mj_models)]
 
@@ -55,25 +49,11 @@ def mjx_get_model(
 
 
 @struct.dataclass
-class MJXState(Base):
-    """Environment state for MJX.
-
-    Args:
-      mjx_model: the current Model, mjx.Model
-      mjx_data: the physics state, mjx.Data
-      observations: environment observations
-      reward: environment reward
-      terminated: boolean, True if the current episode has terminated (e.g. by reaching a goal)
-      truncated: boolean, True if the current episode was truncated (e.g. by time limits)
-      info: metrics that get tracked per environment step
-    """
-    mjx_model: mjx.Model
-    mjx_data: mjx.Data
-    observations: jax.Array
-    reward: jax.Array
-    terminated: jax.Array
-    truncated: jax.Array
-    info: Dict[str, Any] = struct.field(default_factory=dict)
+class MJXEnvState(BaseEnvState, Base):
+    model: mjx.Model
+    data: mjx.Data
+    observations: Dict[str, jax.Array]
+    rng: chex.PRNGKey
 
 
 class MJXObservable(BaseObservable):
@@ -92,14 +72,13 @@ class MJXObservable(BaseObservable):
             mjx_data: mjx.Data,
             *args,
             **kwargs
-            ) -> np.ndarray:
+            ) -> jnp.ndarray:
         return super().__call__(
                 model=mjx_model, data=mjx_data, *args, **kwargs
                 )
 
 
-class BaseMJXEnv(BaseMuJoCoEnvironment, ABC):
-    # todo: Once Gymnasium releases Gymnasium-MJX, inherit from there
+class MJXEnv(BaseMuJoCoEnvironment, ABC):
     def __init__(
             self,
             mjcf_str: str,
@@ -110,10 +89,6 @@ class BaseMJXEnv(BaseMuJoCoEnvironment, ABC):
                 self=self, mjcf_str=mjcf_str, mjcf_assets=mjcf_assets, configuration=configuration
                 )
         self._mjx_model, self._mjx_data = self._initialize_mjx_model_and_data()
-        self._mjx_data = mjx.put_data(m=self.mj_model, d=self.mj_data)
-        self._observables: Optional[List[MJXObservable]] = self._get_observables()
-        self.observation_space = self._get_observation_space()
-        self.action_space = self._get_action_space()
 
     @property
     def mjx_model(
@@ -132,9 +107,9 @@ class BaseMJXEnv(BaseMuJoCoEnvironment, ABC):
             ) -> Tuple[mjx.Model, mjx.Data]:
         return mjx.put_model(m=self.mj_model), mjx.put_data(m=self.mj_model, d=self.mj_data)
 
+    @staticmethod
     def _get_batch_size(
-            self,
-            state: MJXState
+            state: MJXEnvState
             ) -> int:
         try:
             return state.reward.shape[0]
@@ -143,65 +118,14 @@ class BaseMJXEnv(BaseMuJoCoEnvironment, ABC):
 
     def _get_mj_models_and_datas_to_render(
             self,
-            state: MJXState
+            state: MJXEnvState
             ) -> Tuple[List[mujoco.MjModel], List[mujoco.MjData]]:
-
-        if self.environment_configuration.render_mode == "human":
-            mj_models = mjx_get_model(mj_model=self.mj_model, mjx_model=state.mjx_model, n_mj_models=1)
-            mj_datas = mjx.get_data(m=mj_models[0], d=state.mjx_data)
-            if not isinstance(mj_datas, list):
-                mj_datas = [mj_datas]
-            else:
-                mj_datas = [mj_datas[0]]
-        else:
-            mj_models = mjx_get_model(
-                    mj_model=self.mj_model, mjx_model=state.mjx_model, n_mj_models=self._get_batch_size(state=state)
-                    )
-            mj_datas = mjx.get_data(m=self.mj_model, d=state.mjx_data)
-            if not isinstance(mj_datas, list):
-                mj_datas = [mj_datas]
+        num_models = 1 if self.environment_configuration.render_mode == "human" else self._get_batch_size(state=state)
+        mj_models = mjx_get_model(mj_model=self.mj_model, mjx_model=state.model, n_mj_models=num_models)
+        mj_datas = mjx.get_data(m=mj_models[0], d=state.data)
+        if not isinstance(mj_datas, list):
+            mj_datas = [mj_datas]
         return mj_models, mj_datas
-
-    def render(
-            self,
-            state: MJXState
-            ) -> RenderFrame | list[RenderFrame] | list[list[RenderFrame]] | None:
-        # need to update renderer's model and data (we updated stuff in mjx model that should be in the data)
-        # If we are in batch mode,
-        #   the human render mode will only render the first environment
-        #   rgb_array mode will render a frame for every environment
-        camera_ids = self.environment_configuration.camera_ids or [-1]
-
-        mj_models, mj_datas = self._get_mj_models_and_datas_to_render(state=state)
-
-        frames_per_env = []
-        for i, (m, d) in enumerate(zip(mj_models, mj_datas)):
-            mujoco.mj_forward(m=m, d=d)
-            renderer = self.get_renderer(
-                    identifier=i, mj_model=m, mj_data=d, state=state
-                    )
-
-            if self.environment_configuration.render_mode == "human":
-                # noinspection PyProtectedMember
-                viewer = renderer._get_viewer("human")
-                viewer.model = m
-                viewer.data = d
-
-                # Break the loop: only render the first environment in human mode
-                return renderer.render(
-                        render_mode="human", camera_id=camera_ids[0]
-                        )
-            else:
-                renderer._model = m
-                frames = []
-                for camera_id in camera_ids:
-                    renderer.update_scene(data=d, camera=camera_id)
-                    frame = renderer.render()[:, :, ::-1]
-                    frames.append(frame)
-                frames = frames[0] if len(camera_ids) == 1 else frames
-                frames_per_env.append(frames)
-
-        return frames_per_env if self._get_batch_size(state=state) > 1 else frames_per_env[0]
 
     def _initialize_mjx_data(
             self,
@@ -212,16 +136,7 @@ class BaseMJXEnv(BaseMuJoCoEnvironment, ABC):
             ) -> mjx.Data:
         mjx_data = mjx_data.replace(qpos=qpos, qvel=qvel, ctrl=jnp.zeros(self.mjx_model.nu))
         mjx_data = mjx.forward(m=mjx_model, d=mjx_data)
-
         return mjx_data
-
-    def _get_action_space(
-            self
-            ) -> gymnasium.Space:
-        bounds = self.mj_model.actuator_ctrlrange.copy().astype(np.float32)
-        low, high = bounds.T
-        action_space = spaces.Box(low=low, high=high, dtype=np.float32)
-        return action_space
 
     @property
     def observables(
@@ -229,213 +144,121 @@ class BaseMJXEnv(BaseMuJoCoEnvironment, ABC):
             ) -> List[MJXObservable]:
         return self._observables
 
-    @abc.abstractmethod
-    def _get_observables(
+    def _create_observation_space(
             self
-            ) -> List[MJXObservable]:
-        raise NotImplementedError
-
-    def _get_observation_space(
-            self
-            ) -> gymnasium.spaces.Dict:
+            ) -> mjx_spaces.Dict:
         observation_space = dict()
         for observable in self.observables:
-            observation_space[observable.name] = gymnasium.spaces.Box(
-                    low=np.array(observable.low), high=np.array(observable.high), shape=observable.shape
+            observation_space[observable.name] = mjx_spaces.Box(
+                    low=observable.low, high=observable.high, shape=observable.shape
                     )
-        return gymnasium.spaces.Dict(observation_space)
+        return mjx_spaces.Dict(observation_space)
+
+    def _create_action_space(
+            self
+            ) -> mjx_spaces.Box:
+        bounds = jnp.array(self.mj_model.actuator_ctrlrange.copy().astype(np.float32))
+        low, high = bounds.T
+        action_space = spaces.Box(low=low, high=high, shape=low.shape, dtype=jnp.float32)
+        return action_space
 
     def _get_observations(
             self,
-            mjx_model: mjx.Model,
-            mjx_data: mjx.Data,
+            model: mjx.Model,
+            data: mjx.Data,
             *args,
             **kwargs
             ) -> Dict[str, jnp.ndarray]:
         observations = jax.tree_util.tree_map(
                 lambda
                     observable: (observable.name, observable(
-                        mjx_model=mjx_model, mjx_data=mjx_data, *args, **kwargs
+                        mjx_model=model, mjx_data=data, *args, **kwargs
                         )), self.observables
                 )
         return dict(observations)
 
-    def _take_n_steps(
+    def _forward_simulation(
             self,
             mjx_model: mjx.Model,
             mjx_data: mjx.Data,
             ctrl: jnp.ndarray
             ) -> mjx.Data:
-        def f(
+        def _simulation_step(
                 data,
                 _
                 ) -> Tuple[mjx.Data, None]:
             data = data.replace(ctrl=ctrl)
-            return (mjx.step(mjx_model, data), None,)
+            return mjx.step(mjx_model, data), None
 
         mjx_data, _ = jax.lax.scan(
-                f, mjx_data, (), self.environment_configuration.num_physics_steps_per_control_step
+                _simulation_step, mjx_data, (), self.environment_configuration.num_physics_steps_per_control_step
                 )
         return mjx_data
-
-    def backend(
-            self
-            ) -> str:
-        return "mjx"
 
     def close(
             self
             ) -> None:
         super().close()
-        del self._observables
         del self._mjx_model
         del self._mjx_data
 
     @abc.abstractmethod
+    def _get_observables(
+            self
+            ) -> List[MJXObservable]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def step(
             self,
-            state: MJXState,
+            state: MJXEnvState,
             action: jnp.ndarray
-            ) -> MJXState:
+            ) -> MJXEnvState:
         raise NotImplementedError
 
     @abc.abstractmethod
     def reset(
             self,
             rng: jnp.ndarray
-            ) -> MJXState:
+            ) -> MJXEnvState:
         raise NotImplementedError
 
-
-class MJXEnv(BaseWithArenaAndMorphology, BaseMJXEnv, ABC):
-    def __init__(
+    @abc.abstractmethod
+    def _get_reward(
             self,
-            morphology: MJCFMorphology,
-            arena: MJCFArena,
-            configuration: MuJoCoEnvironmentConfiguration
-            ) -> None:
-        BaseWithArenaAndMorphology.__init__(self=self, morphology=morphology, arena=arena)
-        BaseMJXEnv.__init__(
-                self=self, mjcf_str=self._mjcf_str, mjcf_assets=self._mjcf_assets, configuration=configuration
-                )
-
-
-StepFnType = Callable[[MJXState, jnp.ndarray], MJXState]
-ResetFnType = Callable[[jnp.ndarray], MJXState]
-StepReturnType = Tuple[ObsType, float, bool, bool, dict]
-StepBatchReturnType = Tuple[ObsType, jnp.ndarray, jnp.ndarray, jnp.ndarray, dict]
-ResetReturnType = Tuple[ObsType, dict]
-
-
-class MJXGymEnvWrapper:
-    def __init__(
-            self,
-            env: MJXEnv,
-            num_envs: int
-            ) -> None:
-        self._env = env
-        self._num_envs = num_envs
-
-        self.__jit_step: Optional[StepFnType] = None
-        self.__jit_reset: Optional[ResetFnType] = None
-        self._mjx_state: Optional[MJXState] = None
-        self._rng = jax.random.PRNGKey(seed=42)
-
-        self.single_action_space: gymnasium.spaces.Box = env.action_space
-        self.single_observation_space: gymnasium.spaces.Dict = env.observation_space
-        if self.number_of_environments > 1:
-            self.action_space = batch_space(self.single_action_space, self.number_of_environments)
-            self.observation_space = batch_space(self.single_observation_space, self.number_of_environments)
-        else:
-            self.action_space = self.single_action_space
-            self.observation_space = self.single_observation_space
-
-    @property
-    def number_of_environments(
-            self
-            ) -> int:
-        return self._num_envs
-
-    @property
-    def mjx_environment(
-            self
-            ) -> MJXEnv:
-        return self._env
-
-    def _prepare_env_fn(
-            self,
-            fn: Callable
-            ) -> Callable:
-        if self.number_of_environments > 1:
-            fn = jax.vmap(fn)
-        return jax.jit(fn)
-
-    @property
-    def _jit_step(
-            self
-            ) -> StepFnType:
-        if self.__jit_step is None:
-            self.__jit_step = self._prepare_env_fn(fn=self.mjx_environment.step)
-        return self.__jit_step
-
-    @property
-    def _jit_reset(
-            self
-            ) -> ResetFnType:
-        if self.__jit_reset is None:
-            self.__jit_reset = self._prepare_env_fn(fn=self.mjx_environment.reset)
-        return self.__jit_reset
-
-    def step(
-            self,
-            actions: ActType
-            ) -> Union[StepReturnType, StepBatchReturnType]:
-        """Steps through the environment with action."""
-        self._mjx_state = self._jit_step(self._mjx_state, actions)
-
-        return (
-        self._mjx_state.observations, self._mjx_state.reward, self._mjx_state.terminated, self._mjx_state.truncated,
-        self._mjx_state.info)
-
-    def reset(
-            self,
-            seed: int | None = None,
-            **kwargs
-            ) -> ResetReturnType:
-        """Resets the environment with kwargs."""
-        if seed is not None:
-            self._rng = jax.random.PRNGKey(seed=seed)
-        self._rng, *sub_rngs = jax.random.split(key=self._rng, num=self.number_of_environments + 1)
-        sub_rngs = jnp.array(sub_rngs)
-        if self.number_of_environments == 1:
-            sub_rngs = sub_rngs[0]
-
-        self._mjx_state = self._jit_reset(sub_rngs)
-
-        return self._mjx_state.observations, self._mjx_state.info
-
-    def render(
-            self,
+            model: mjx.Model,
+            data: mjx.Data,
             *args,
             **kwargs
-            ) -> Optional[Union[RenderFrame, List[RenderFrame]]]:
-        """Renders the environment."""
-        return self.mjx_environment.render(self._mjx_state, *args, **kwargs)
+            ) -> float:
+        raise NotImplementedError
 
-    def close(
-            self
-            ):
-        """Closes the environment."""
-        return self.mjx_environment.close()
+    @abc.abstractmethod
+    def _should_terminate(
+            self,
+            model: mjx.Model,
+            data: mjx.Data,
+            *args,
+            **kwargs
+            ) -> float:
+        raise NotImplementedError
 
-    def __str__(
-            self
-            ):
-        """Returns the wrapper name and the unwrapped environment string."""
-        return f"<{type(self).__name__}{self.mjx_environment}>"
+    @abc.abstractmethod
+    def _should_truncate(
+            self,
+            model: mjx.Model,
+            data: mjx.Data,
+            *args,
+            **kwargs
+            ) -> float:
+        raise NotImplementedError
 
-    def __repr__(
-            self
-            ):
-        """Returns the string representation of the wrapper."""
-        return str(self)
+    @abc.abstractmethod
+    def _get_info(
+            self,
+            model: mjx.Model,
+            data: mjx.Data,
+            *args,
+            **kwargs
+            ) -> Dict[str, Any]:
+        raise NotImplementedError
