@@ -12,7 +12,6 @@ import mujoco
 import numpy as np
 from brax.base import Base
 from flax import struct
-from gymnasium import spaces
 from mujoco import mjx
 
 import mujoco_utils.environment.mjx_spaces as mjx_spaces
@@ -170,7 +169,7 @@ class MJXEnv(BaseMuJoCoEnvironment, ABC):
             ) -> mjx_spaces.Box:
         bounds = jnp.array(self.mj_model.actuator_ctrlrange.copy().astype(np.float32))
         low, high = bounds.T
-        action_space = spaces.Box(low=low, high=high, shape=low.shape, dtype=jnp.float32)
+        action_space = mjx_spaces.Box(low=low, high=high, shape=low.shape, dtype=jnp.float32)
         return action_space
 
     def _get_observations(
