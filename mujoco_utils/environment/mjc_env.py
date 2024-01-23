@@ -42,12 +42,12 @@ class MJCObservable(BaseObservable):
 
     def __call__(
             self,
-            mj_model: mujoco.MjModel,
-            mj_data: mujoco.MjData,
+            model: mujoco.MjModel,
+            data: mujoco.MjData,
             *args,
             **kwargs
             ) -> np.ndarray:
-        return super().__call__(model=mj_model, data=mj_data, *args, **kwargs)
+        return super().__call__(model=model, data=data, *args, **kwargs)
 
 
 class MJCEnv(BaseMuJoCoEnvironment, ABC):
