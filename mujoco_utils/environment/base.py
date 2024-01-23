@@ -108,7 +108,7 @@ class BaseEnvState(abc.ABC):
     terminated: chex.Array
     truncated: chex.Array
     info: Dict[str, Any]
-    rng: chex.Array
+    rng: np.random.RandomState | chex.PRNGKey
 
     def replace(
             self,

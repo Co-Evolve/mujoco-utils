@@ -21,7 +21,7 @@ class MJCEnvState(BaseEnvState):
     model: mujoco.MjModel
     data: mujoco.MjData
     observations: Dict[str, np.ndarray]
-    rng: int
+    rng: np.random.RandomState
 
     def replace(
             self,
@@ -146,7 +146,7 @@ class MJCEnv(BaseMuJoCoEnvironment, ABC):
     @abc.abstractmethod
     def reset(
             self,
-            rng: int
+            rng: np.random.RandomState
             ) -> MJCEnvState:
         raise NotImplementedError
 
