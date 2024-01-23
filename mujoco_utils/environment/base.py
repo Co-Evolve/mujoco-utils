@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import abc
-import copy
 import dataclasses
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
@@ -115,10 +114,9 @@ class BaseEnvState(abc.ABC):
             self,
             **kwargs
             ) -> BaseEnvState:
-        new_state = copy.deepcopy(self)
-        for k, value in kwargs:
-            new_state.__setattr__(k, value)
-        return new_state
+        for k, value in kwargs.items():
+            self.__setattr__(k, value)
+        return self
 
 
 class BaseMuJoCoEnvironment(abc.ABC):
