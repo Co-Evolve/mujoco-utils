@@ -183,7 +183,7 @@ class MJXEnv(BaseMuJoCoEnvironment, ABC):
         observations = jax.tree_util.tree_map(
                 lambda
                     observable: (observable.name, observable(
-                        mjx_model=model, mjx_data=data, *args, **kwargs
+                        model=model, data=data, *args, **kwargs
                         )), self.observables
                 )
         return dict(observations)

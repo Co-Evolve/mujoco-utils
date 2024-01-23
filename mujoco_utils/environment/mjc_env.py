@@ -108,7 +108,7 @@ class MJCEnv(BaseMuJoCoEnvironment, ABC):
         observations = dict()
         for observable in self.observables:
             observations[observable.name] = observable(
-                    mj_model=model, mj_data=data, *args, **kwargs
+                    model=model, data=data, *args, **kwargs
                     )
         return observations
 
