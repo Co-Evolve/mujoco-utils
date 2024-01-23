@@ -142,13 +142,13 @@ class MJXEnv(BaseMuJoCoEnvironment, ABC):
 
     def _initialize_mjx_data(
             self,
-            mjx_model: mjx.Model,
-            mjx_data: mjx.Data,
+            model: mjx.Model,
+            data: mjx.Data,
             qpos: jnp.ndarray,
             qvel: jnp.ndarray
             ) -> mjx.Data:
-        mjx_data = mjx_data.replace(qpos=qpos, qvel=qvel, ctrl=jnp.zeros(self.mjx_model.nu))
-        mjx_data = mjx.forward(m=mjx_model, d=mjx_data)
+        mjx_data = data.replace(qpos=qpos, qvel=qvel, ctrl=jnp.zeros(self.mjx_model.nu))
+        mjx_data = mjx.forward(m=model, d=mjx_data)
         return mjx_data
 
     @property
