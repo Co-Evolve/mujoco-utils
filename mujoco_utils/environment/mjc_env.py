@@ -23,6 +23,12 @@ class MJCEnvState(BaseEnvState):
     observations: Dict[str, np.ndarray]
     rng: int
 
+    def replace(
+            self,
+            **kwargs
+            ) -> MJCEnvState:
+        return super().replace(**kwargs)
+
 
 class MJCObservable(BaseObservable):
     def __init__(
