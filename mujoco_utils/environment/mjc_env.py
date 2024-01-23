@@ -57,7 +57,7 @@ class MJCEnv(BaseMuJoCoEnvironment, ABC):
             mjcf_assets: Dict[str, Any],
             configuration: MuJoCoEnvironmentConfiguration
             ) -> None:
-        super().__init__(self, mjcf_str=mjcf_str, mjcf_assets=mjcf_assets, configuration=configuration)
+        super().__init__(mjcf_str=mjcf_str, mjcf_assets=mjcf_assets, configuration=configuration)
 
     @classmethod
     def from_morphology_and_arena(

@@ -89,9 +89,7 @@ class MJXEnv(BaseMuJoCoEnvironment, ABC):
             mjcf_assets: Dict[str, Any],
             configuration: MuJoCoEnvironmentConfiguration
             ) -> None:
-        BaseMuJoCoEnvironment.__init__(
-                self=self, mjcf_str=mjcf_str, mjcf_assets=mjcf_assets, configuration=configuration
-                )
+        super().__init__(mjcf_str=mjcf_str, mjcf_assets=mjcf_assets, configuration=configuration)
         self._mjx_model, self._mjx_data = self._initialize_mjx_model_and_data()
 
     @classmethod
