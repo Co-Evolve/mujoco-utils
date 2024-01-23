@@ -214,7 +214,7 @@ class MJXEnv(BaseMuJoCoEnvironment, ABC):
         del self._mjx_data
 
     @abc.abstractmethod
-    def _get_observables(
+    def _create_observables(
             self
             ) -> List[MJXObservable]:
         raise NotImplementedError
