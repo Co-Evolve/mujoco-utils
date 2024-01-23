@@ -192,19 +192,19 @@ class MJXEnv(BaseMuJoCoEnvironment, ABC):
 
     def _forward_simulation(
             self,
-            mjx_model: mjx.Model,
-            mjx_data: mjx.Data,
+            model: mjx.Model,
+            data: mjx.Data,
             ctrl: jnp.ndarray
             ) -> mjx.Data:
         def _simulation_step(
-                data,
+                _data,
                 _
                 ) -> Tuple[mjx.Data, None]:
-            data = data.replace(ctrl=ctrl)
-            return mjx.step(mjx_model, data), None
+            _data = _data.replace(ctrl=ctrl)
+            return mjx.step(model, _data), None
 
         mjx_data, _ = jax.lax.scan(
-                _simulation_step, mjx_data, (), self.environment_configuration.num_physics_steps_per_control_step
+                _simulation_step, data, (), self.environment_configuration.num_physics_steps_per_control_step
                 )
         return mjx_data
 
