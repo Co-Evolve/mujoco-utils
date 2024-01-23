@@ -72,13 +72,13 @@ class MJXObservable(BaseObservable):
 
     def __call__(
             self,
-            mjx_model: mjx.Model,
-            mjx_data: mjx.Data,
+            model: mjx.Model,
+            data: mjx.Data,
             *args,
             **kwargs
             ) -> jnp.ndarray:
         return super().__call__(
-                model=mjx_model, data=mjx_data, *args, **kwargs
+                model=model, data=data, *args, **kwargs
                 )
 
 
