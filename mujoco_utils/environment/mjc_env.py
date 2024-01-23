@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import abc
 import dataclasses
 from abc import ABC
@@ -6,10 +8,12 @@ from typing import Any, Callable, Dict, List, Tuple
 import gymnasium
 import mujoco
 import numpy as np
-from gymnasium.core import ActType, RenderFrame
+from gymnasium.core import ActType
 
+from mujoco_utils.arena import MJCFArena
 from mujoco_utils.environment.base import BaseEnvState, BaseMuJoCoEnvironment, BaseObservable, \
     MuJoCoEnvironmentConfiguration
+from mujoco_utils.morphology import MJCFMorphology
 
 
 @dataclasses.dataclass
@@ -48,6 +52,15 @@ class MJCEnv(BaseMuJoCoEnvironment, ABC):
             configuration: MuJoCoEnvironmentConfiguration
             ) -> None:
         super().__init__(self, mjcf_str=mjcf_str, mjcf_assets=mjcf_assets, configuration=configuration)
+
+    @classmethod
+    def from_morphology_and_arena(
+            cls,
+            morphology: MJCFMorphology,
+            arena: MJCFArena,
+            configuration: MuJoCoEnvironmentConfiguration
+            ) -> MJCEnv:
+        return super().from_morphology_and_arena(morphology=morphology, arena=arena, configuration=configuration)
 
     def _get_mj_models_and_datas_to_render(
             self,

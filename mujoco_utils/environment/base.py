@@ -139,15 +139,16 @@ class BaseMuJoCoEnvironment(abc.ABC):
         self._action_space: Optional[BoxSpaceType] = self._create_action_space()
         self._observation_space: Optional[DictSpaceType] = self._create_observation_space()
 
-    @staticmethod
+    @classmethod
     def from_morphology_and_arena(
+            cls,
             morphology: MJCFMorphology,
             arena: MJCFArena,
             configuration: MuJoCoEnvironmentConfiguration
             ) -> BaseMuJoCoEnvironment:
         arena.attach(other=morphology, free_joint=True)
         mjcf_str, mjcf_assets = arena.get_mjcf_str(), arena.get_mjcf_assets()
-        return BaseMuJoCoEnvironment(
+        return cls(
                 mjcf_str=mjcf_str, mjcf_assets=mjcf_assets, configuration=configuration
                 )
 

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import abc
 import copy
 from abc import ABC
@@ -14,8 +16,10 @@ from gymnasium import spaces
 from mujoco import mjx
 
 import mujoco_utils.environment.mjx_spaces as mjx_spaces
+from mujoco_utils.arena import MJCFArena
 from mujoco_utils.environment.base import BaseEnvState, BaseMuJoCoEnvironment, BaseObservable, \
     MuJoCoEnvironmentConfiguration
+from mujoco_utils.morphology import MJCFMorphology
 
 
 def mjx_get_model(
@@ -89,6 +93,15 @@ class MJXEnv(BaseMuJoCoEnvironment, ABC):
                 self=self, mjcf_str=mjcf_str, mjcf_assets=mjcf_assets, configuration=configuration
                 )
         self._mjx_model, self._mjx_data = self._initialize_mjx_model_and_data()
+
+    @classmethod
+    def from_morphology_and_arena(
+            cls,
+            morphology: MJCFMorphology,
+            arena: MJCFArena,
+            configuration: MuJoCoEnvironmentConfiguration
+            ) -> MJXEnv:
+        return super().from_morphology_and_arena(morphology=morphology, arena=arena, configuration=configuration)
 
     @property
     def mjx_model(
