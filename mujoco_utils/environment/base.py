@@ -200,18 +200,18 @@ class BaseMuJoCoEnvironment(abc.ABC):
     def get_renderer(
             self,
             identifier: int,
-            mj_model: mujoco.MjModel,
-            mj_data: mujoco.MjData,
+            model: mujoco.MjModel,
+            data: mujoco.MjData,
             state: BaseEnvState
             ) -> Union[MujocoRenderer, mujoco.Renderer]:
         if identifier not in self._renderers:
             if self.environment_configuration.render_mode == "human":
                 renderer = MujocoRenderer(
-                        model=mj_model or self.mj_model, data=mj_data or self.mj_data, default_cam_config=None
+                        model=model, data=data, default_cam_config=None
                         )
             else:
                 renderer = mujoco.Renderer(
-                        model=mj_model or self.mj_model,
+                        model=model,
                         height=self.environment_configuration.render_size[0],
                         width=self.environment_configuration.render_size[1]
                         )
@@ -249,7 +249,7 @@ class BaseMuJoCoEnvironment(abc.ABC):
         for i, (model, data) in enumerate(zip(mj_models, mj_datas)):
             mujoco.mj_forward(m=model, d=data)
             renderer = self.get_renderer(
-                    identifier=i, mj_model=model, mj_data=data, state=state
+                    identifier=i, model=model, data=data, state=state
                     )
 
             if self.environment_configuration.render_mode == "human":
