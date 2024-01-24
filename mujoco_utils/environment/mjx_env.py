@@ -217,8 +217,9 @@ class MJXEnv(BaseMuJoCoEnvironment, ABC):
     def _prepare_reset(
             self
             ) -> Tuple[mjx.Model, mjx.Data]:
-        model = copy.deepcopy(self.frozen_mjx_model)
-        data = copy.deepcopy(self.frozen_mjx_data)
+        # No need to actually create a copy here: jax structures are immutable
+        model = self.frozen_mjx_model
+        data = self.frozen_mjx_data
         return model, data
 
     @abc.abstractmethod
