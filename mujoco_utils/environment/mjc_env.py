@@ -106,6 +106,7 @@ class MJCEnv(BaseMuJoCoEnvironment, ABC):
             ctrl: ActType
             ) -> MJCEnvState:
         mj_data = copy.deepcopy(state.mj_data)
+        mj_data.ctrl[:] = ctrl
         mujoco.mj_step(
                 m=state.mj_model, d=mj_data, nstep=self.environment_configuration.num_physics_steps_per_control_step
                 )
