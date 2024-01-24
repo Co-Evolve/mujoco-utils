@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import abc
-import dataclasses
 from abc import ABC
 from typing import Any, Callable, Dict, List, Tuple
 
 import gymnasium
 import mujoco
 import numpy as np
+from flax import struct
 from gymnasium.core import ActType
 
 from mujoco_utils.arena import MJCFArena
@@ -16,18 +16,12 @@ from mujoco_utils.environment.base import BaseEnvState, BaseMuJoCoEnvironment, B
 from mujoco_utils.morphology import MJCFMorphology
 
 
-@dataclasses.dataclass
+@struct.dataclass
 class MJCEnvState(BaseEnvState):
     model: mujoco.MjModel
     data: mujoco.MjData
     observations: Dict[str, np.ndarray]
     rng: np.random.RandomState
-
-    def replace(
-            self,
-            **kwargs
-            ) -> MJCEnvState:
-        return dataclasses.replace(self, **kwargs)
 
 
 class MJCObservable(BaseObservable):

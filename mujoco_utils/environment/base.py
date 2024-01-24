@@ -8,6 +8,7 @@ import chex
 import gymnasium
 import mujoco
 import numpy as np
+from flax import struct
 from gymnasium.core import RenderFrame
 from mujoco import mjx
 
@@ -99,7 +100,7 @@ class BaseObservable:
         return self.low.shape
 
 
-@dataclasses.dataclass
+@struct.dataclass
 class BaseEnvState(abc.ABC):
     model: ModelType
     data: DataType
