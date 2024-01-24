@@ -57,12 +57,6 @@ class MJXEnvState(BaseEnvState):
     observations: Dict[str, jax.Array]
     rng: chex.PRNGKey
 
-    def replace(
-            self,
-            **kwargs
-            ) -> MJXEnvState:
-        return super().replace(**kwargs)
-
 
 class MJXObservable(BaseObservable):
     def __init__(
