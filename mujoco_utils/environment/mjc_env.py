@@ -131,6 +131,26 @@ class MJCEnv(BaseMuJoCoEnvironment, ABC):
         data = copy.deepcopy(self.frozen_mj_data)
         return model, data
 
+    def _finish_reset(
+            self,
+            models_and_datas: Tuple[mujoco.MjModel, mujoco.MjData],
+            rng: np.random.RandomState
+            ) -> MJCEnvState:
+        mj_model, mj_data = models_and_datas
+        state = MJCEnvState(
+                mj_model=mj_model,
+                mj_data=mj_data,
+                observations={},
+                reward=0,
+                terminated=False,
+                truncated=False,
+                info={},
+                rng=rng
+                )
+        state = self._update_observations(state=state)
+        state = self._update_info(state=state)
+        return state
+
     @abc.abstractmethod
     def _create_observables(
             self

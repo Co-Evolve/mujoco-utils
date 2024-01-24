@@ -331,9 +331,17 @@ class BaseMuJoCoEnvironment(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
+    def _finish_reset(
+            self,
+            models_and_datas: Tuple[Tuple[ModelType, DataType], ...],
+            rng: np.random.RandomState | chex.PRNGKey
+            ) -> BaseEnvState:
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def reset(
             self,
-            rng: chex.Array
+            rng: np.random.RandomState | chex.PRNGKey
             ) -> BaseEnvState:
         raise NotImplementedError
 

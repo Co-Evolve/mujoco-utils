@@ -212,6 +212,28 @@ class MJXEnv(BaseMuJoCoEnvironment, ABC):
         mjx_data = self.frozen_mjx_data
         return (mj_model, mj_data), (mjx_model, mjx_data)
 
+    def _finish_reset(
+            self,
+            models_and_datas: Tuple[Tuple[mujoco.MjModel, mujoco.MjData], Tuple[mjx.Model, mjx.Data]],
+            rng: np.random.RandomState
+            ) -> MJXEnvState:
+        (mj_model, mj_data), (mjx_model, mjx_data) = models_and_datas
+        state = MJXEnvState(
+                mj_model=mj_model,
+                mj_data=mj_data,
+                mjx_model=mjx_model,
+                mjx_data=mjx_data,
+                observations={},
+                reward=0,
+                terminated=False,
+                truncated=False,
+                info={},
+                rng=rng
+                )
+        state = self._update_observations(state=state)
+        state = self._update_info(state=state)
+        return state
+
     @abc.abstractmethod
     def _create_observables(
             self
