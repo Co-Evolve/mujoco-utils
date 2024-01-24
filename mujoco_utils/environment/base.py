@@ -160,13 +160,13 @@ class BaseMuJoCoEnvironment(abc.ABC):
         return self._configuration
 
     @property
-    def mj_model(
+    def frozen_mj_model(
             self
             ) -> mujoco.MjModel:
         return self._mj_model
 
     @property
-    def mj_data(
+    def frozen_mj_data(
             self
             ) -> mujoco.MjData:
         return self._mj_data
@@ -175,7 +175,7 @@ class BaseMuJoCoEnvironment(abc.ABC):
     def actuators(
             self
             ) -> List[str]:
-        return [self.mj_model.actuator(i).name for i in range(self.mj_model.nu)]
+        return [self.frozen_mj_model.actuator(i).name for i in range(self.frozen_mj_model.nu)]
 
     @property
     def action_space(
@@ -324,6 +324,10 @@ class BaseMuJoCoEnvironment(abc.ABC):
             state: BaseEnvState,
             action: chex.Array
             ) -> BaseEnvState:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _prepare_reset(self) -> Tuple[ModelType, DataType]:
         raise NotImplementedError
 
     @abc.abstractmethod

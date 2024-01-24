@@ -100,13 +100,13 @@ class MJXEnv(BaseMuJoCoEnvironment, ABC):
         return super().from_morphology_and_arena(morphology=morphology, arena=arena, configuration=configuration)
 
     @property
-    def mjx_model(
+    def frozen_mjx_model(
             self
             ) -> mjx.Model:
         return self._mjx_model
 
     @property
-    def mjx_data(
+    def frozen_mjx_data(
             self
             ) -> mjx.Data:
         return self._mjx_data
@@ -114,7 +114,7 @@ class MJXEnv(BaseMuJoCoEnvironment, ABC):
     def _initialize_mjx_model_and_data(
             self
             ) -> Tuple[mjx.Model, mjx.Data]:
-        return mjx.put_model(m=self.mj_model), mjx.put_data(m=self.mj_model, d=self.mj_data)
+        return mjx.put_model(m=self.frozen_mj_model), mjx.put_data(m=self.frozen_mj_model, d=self.frozen_mj_data)
 
     @staticmethod
     def _get_batch_size(
@@ -130,22 +130,11 @@ class MJXEnv(BaseMuJoCoEnvironment, ABC):
             state: MJXEnvState
             ) -> Tuple[List[mujoco.MjModel], List[mujoco.MjData]]:
         num_models = 1 if self.environment_configuration.render_mode == "human" else self._get_batch_size(state=state)
-        mj_models = mjx_get_model(mj_model=self.mj_model, mjx_model=state.model, n_mj_models=num_models)
+        mj_models = mjx_get_model(mj_model=self.frozen_mj_model, mjx_model=state.model, n_mj_models=num_models)
         mj_datas = mjx.get_data(m=mj_models[0], d=state.data)
         if not isinstance(mj_datas, list):
             mj_datas = [mj_datas]
         return mj_models, mj_datas
-
-    def _initialize_mjx_data(
-            self,
-            model: mjx.Model,
-            data: mjx.Data,
-            qpos: jnp.ndarray,
-            qvel: jnp.ndarray
-            ) -> mjx.Data:
-        mjx_data = data.replace(qpos=qpos, qvel=qvel, ctrl=jnp.zeros(self.mjx_model.nu))
-        mjx_data = mjx.forward(m=model, d=mjx_data)
-        return mjx_data
 
     @property
     def observables(
@@ -166,7 +155,7 @@ class MJXEnv(BaseMuJoCoEnvironment, ABC):
     def _create_action_space(
             self
             ) -> mjx_spaces.Box:
-        bounds = jnp.array(self.mj_model.actuator_ctrlrange.copy().astype(np.float32))
+        bounds = jnp.array(self.frozen_mj_model.actuator_ctrlrange.copy().astype(np.float32))
         low, high = bounds.T
         action_space = mjx_spaces.Box(low=low, high=high, shape=low.shape, dtype=jnp.float32)
         return action_space
@@ -224,6 +213,13 @@ class MJXEnv(BaseMuJoCoEnvironment, ABC):
             action: jnp.ndarray
             ) -> MJXEnvState:
         raise NotImplementedError
+
+    def _prepare_reset(
+            self
+            ) -> Tuple[mjx.Model, mjx.Data]:
+        model = copy.deepcopy(self.frozen_mjx_model)
+        data = copy.deepcopy(self.frozen_mjx_data)
+        return model, data
 
     @abc.abstractmethod
     def reset(

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+import copy
 from abc import ABC
 from typing import Any, Callable, Dict, List, Tuple
 
@@ -87,7 +88,7 @@ class MJCEnv(BaseMuJoCoEnvironment, ABC):
     def _create_action_space(
             self
             ) -> gymnasium.Space:
-        bounds = self.mj_model.actuator_ctrlrange.copy().astype(np.float32)
+        bounds = self.frozen_mj_model.actuator_ctrlrange.copy().astype(np.float32)
         low, high = bounds.T
         action_space = gymnasium.spaces.Box(low=low, high=high, dtype=np.float32)
         return action_space
@@ -136,6 +137,13 @@ class MJCEnv(BaseMuJoCoEnvironment, ABC):
             action: np.ndarray
             ) -> MJCEnvState:
         raise NotImplementedError
+
+    def _prepare_reset(
+            self
+            ) -> Tuple[mujoco.MjModel, mujoco.MjData]:
+        model = copy.deepcopy(self.frozen_mj_model)
+        data = copy.deepcopy(self.frozen_mj_data)
+        return model, data
 
     @abc.abstractmethod
     def reset(
