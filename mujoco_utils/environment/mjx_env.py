@@ -10,7 +10,6 @@ import jax
 import jax.numpy as jnp
 import mujoco
 import numpy as np
-from brax.base import Base
 from flax import struct
 from mujoco import mjx
 
@@ -52,11 +51,17 @@ def mjx_get_model(
 
 
 @struct.dataclass
-class MJXEnvState(BaseEnvState, Base):
+class MJXEnvState(BaseEnvState):
     model: mjx.Model
     data: mjx.Data
     observations: Dict[str, jax.Array]
     rng: chex.PRNGKey
+
+    def replace(
+            self,
+            **kwargs
+            ) -> MJXEnvState:
+        return super().replace(**kwargs)
 
 
 class MJXObservable(BaseObservable):
