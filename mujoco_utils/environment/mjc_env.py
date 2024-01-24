@@ -137,6 +137,7 @@ class MJCEnv(BaseMuJoCoEnvironment, ABC):
             rng: np.random.RandomState
             ) -> MJCEnvState:
         mj_model, mj_data = models_and_datas
+        mujoco.mj_forward(m=mj_model, d=mj_data)
         state = MJCEnvState(
                 mj_model=mj_model,
                 mj_data=mj_data,

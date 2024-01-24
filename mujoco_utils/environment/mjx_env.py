@@ -218,6 +218,7 @@ class MJXEnv(BaseMuJoCoEnvironment, ABC):
             rng: np.random.RandomState
             ) -> MJXEnvState:
         (mj_model, mj_data), (mjx_model, mjx_data) = models_and_datas
+        mjx_data = mjx.forward(m=mjx_model, d=mjx_data)
         state = MJXEnvState(
                 mj_model=mj_model,
                 mj_data=mj_data,
