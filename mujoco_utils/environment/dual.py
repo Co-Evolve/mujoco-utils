@@ -14,8 +14,8 @@ from mujoco_utils.morphology import MJCFMorphology
 
 
 class DualMuJoCoEnvironment(BaseEnvironment):
-    MJC_ENV_CLASS: MJCEnv
-    MJX_ENV_CLASS: MJXEnv
+    MJC_ENV_CLASS: type[MJCEnv]
+    MJX_ENV_CLASS: type[MJXEnv]
 
     def __init__(
             self,
@@ -31,7 +31,7 @@ class DualMuJoCoEnvironment(BaseEnvironment):
         else:
             env_class = self.MJX_ENV_CLASS
 
-        self._env = env_class.__init__(
+        self._env = env_class(
                 mjcf_str=mjcf_str, mjcf_assets=mjcf_assets, configuration=configuration
                 )
 
