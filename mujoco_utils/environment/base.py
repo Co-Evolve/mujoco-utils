@@ -189,6 +189,7 @@ class BaseMuJoCoEnvironment(abc.ABC):
         mj_model = mujoco.MjModel.from_xml_string(xml=self._mjcf_str, assets=self._mjcf_assets)
         mj_model.vis.global_.offheight = self.environment_configuration.render_size[0]
         mj_model.vis.global_.offwidth = self.environment_configuration.render_size[1]
+        mj_model.option.timestep = self.environment_configuration.physics_timestep
         mj_data = mujoco.MjData(mj_model)
         return mj_model, mj_data
 
