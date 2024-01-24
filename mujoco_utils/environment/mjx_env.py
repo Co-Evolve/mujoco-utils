@@ -166,7 +166,7 @@ class MJXEnv(BaseMuJoCoEnvironment, ABC):
                         )), self.observables
                 )
         # noinspection PyUnresolvedReferences
-        return state.replace(dict(observations))
+        return state.replace(observations=dict(observations))
 
     def _update_simulation(
             self,
