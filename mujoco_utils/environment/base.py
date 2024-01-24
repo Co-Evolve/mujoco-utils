@@ -106,9 +106,70 @@ class BaseEnvState(abc.ABC):
     rng: np.random.RandomState | chex.PRNGKey
 
 
-class BaseMuJoCoEnvironment(abc.ABC):
-    box_space: BoxSpaceType = None
-    dict_space: DictSpaceType = None
+class BaseEnvironment(abc.ABC):
+    def __init__(
+            self,
+            configuration: MuJoCoEnvironmentConfiguration
+            ) -> None:
+        self._configuration = configuration
+
+    @property
+    def environment_configuration(
+            self
+            ) -> MuJoCoEnvironmentConfiguration:
+        return self._configuration
+
+    @property
+    @abc.abstractmethod
+    def action_space(
+            self
+            ) -> SpaceType:
+        raise NotImplementedError
+
+    @property
+    @abc.abstractmethod
+    def actuators(
+            self
+            ) -> List[str]:
+        raise NotImplementedError
+
+    @property
+    @abc.abstractmethod
+    def observation_space(
+            self
+            ) -> SpaceType:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def step(
+            self,
+            state: BaseEnvState,
+            action: chex.Array
+            ) -> BaseEnvState:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def reset(
+            self,
+            rng: np.random.RandomState | chex.PRNGKey
+            ) -> BaseEnvState:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def render(
+            self,
+            state: BaseEnvState
+            ) -> List[RenderFrame] | None:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def close(
+            self
+            ) -> None:
+        raise NotImplementedError
+
+
+class BaseMuJoCoEnvironment(BaseEnvironment, abc.ABC):
     metadata = {"render_modes": []}
 
     def __init__(
@@ -117,10 +178,9 @@ class BaseMuJoCoEnvironment(abc.ABC):
             mjcf_assets: Dict[str, Any],
             configuration: MuJoCoEnvironmentConfiguration
             ) -> None:
+        super().__init__(configuration=configuration)
         self._mjcf_str = mjcf_str
         self._mjcf_assets = mjcf_assets
-
-        self._configuration = configuration
 
         self._renderers: Dict[int, Union[MujocoRenderer, mujoco.Renderer]] = dict()
 
@@ -146,12 +206,6 @@ class BaseMuJoCoEnvironment(abc.ABC):
         return cls(
                 mjcf_str=mjcf_str, mjcf_assets=mjcf_assets, configuration=configuration
                 )
-
-    @property
-    def environment_configuration(
-            self
-            ) -> MuJoCoEnvironmentConfiguration:
-        return self._configuration
 
     @property
     def frozen_mj_model(
@@ -181,7 +235,7 @@ class BaseMuJoCoEnvironment(abc.ABC):
     def observation_space(
             self
             ) -> SpaceType:
-        return self.observation_space
+        return self._observation_space
 
     def _initialize_mj_model_and_data(
             self
@@ -192,6 +246,22 @@ class BaseMuJoCoEnvironment(abc.ABC):
         mj_model.opt.timestep = self.environment_configuration.physics_timestep
         mj_data = mujoco.MjData(mj_model)
         return mj_model, mj_data
+
+    def step(
+            self,
+            state: BaseEnvState,
+            action: chex.Array
+            ) -> BaseEnvState:
+        previous_state = state
+        state = self._update_simulation(state=state, ctrl=action)
+
+        state = self._update_observations(state=state)
+        state = self._update_reward(state=state, previous_state=previous_state)
+        state = self._update_terminated(state=state)
+        state = self._update_truncated(state=state)
+        state = self._update_info(state=state)
+
+        return state
 
     def get_renderer(
             self,
@@ -282,30 +352,6 @@ class BaseMuJoCoEnvironment(abc.ABC):
         del self._action_space
         del self._observables
 
-    def step(
-            self,
-            state: BaseEnvState,
-            action: chex.Array
-            ) -> BaseEnvState:
-        previous_state = state
-        state = self._update_simulation(state=state, ctrl=action)
-
-        state = self._update_observations(state=state)
-        state = self._update_reward(state=state, previous_state=previous_state)
-        state = self._update_terminated(state=state)
-        state = self._update_truncated(state=state)
-        state = self._update_info(state=state)
-
-        return state
-
-    @abc.abstractmethod
-    def _update_simulation(
-            self,
-            state: BaseEnvState,
-            ctrl: chex.Array
-            ) -> BaseEnvState:
-        raise NotImplementedError
-
     @abc.abstractmethod
     def _create_observation_space(
             self
@@ -323,6 +369,14 @@ class BaseMuJoCoEnvironment(abc.ABC):
     def _create_action_space(
             self
             ) -> BoxSpaceType:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _update_simulation(
+            self,
+            state: BaseEnvState,
+            ctrl: chex.Array
+            ) -> BaseEnvState:
         raise NotImplementedError
 
     @abc.abstractmethod
