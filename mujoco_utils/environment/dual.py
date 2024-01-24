@@ -1,14 +1,16 @@
 from __future__ import annotations
 
-from typing import List
+from typing import Any, Dict, List
 
 import chex
 import numpy as np
 from gymnasium.core import RenderFrame
 
+from mujoco_utils.arena import MJCFArena
 from mujoco_utils.environment.base import BaseEnvState, BaseEnvironment, MuJoCoEnvironmentConfiguration, SpaceType
 from mujoco_utils.environment.mjc_env import MJCEnv
 from mujoco_utils.environment.mjx_env import MJXEnv
+from mujoco_utils.morphology import MJCFMorphology
 
 
 class DualMuJoCoEnvironment(BaseEnvironment):
@@ -17,10 +19,12 @@ class DualMuJoCoEnvironment(BaseEnvironment):
 
     def __init__(
             self,
+            mjcf_str: str,
+            mjcf_assets: Dict[str, Any],
             configuration: MuJoCoEnvironmentConfiguration,
-            backend: str
-            ) -> None:
+            backend: str, ) -> None:
         assert backend in ["MJC", "MJX"], f"Backend must either be 'MJC' or 'MJX'. {backend} was given."
+
         super().__init__(configuration=configuration)
         if backend == "MJC":
             env_class = self.MJC_ENV_CLASS
@@ -28,7 +32,20 @@ class DualMuJoCoEnvironment(BaseEnvironment):
             env_class = self.MJX_ENV_CLASS
 
         self._env = env_class.__init__(
-                mjcf_str=None, mjcf_assets=None, configuration=configuration
+                mjcf_str=mjcf_str, mjcf_assets=mjcf_assets, configuration=configuration
+                )
+
+    @classmethod
+    def from_morphology_and_arena(
+            cls,
+            morphology: MJCFMorphology,
+            arena: MJCFArena,
+            configuration: MuJoCoEnvironmentConfiguration,
+            backend: str, ) -> DualMuJoCoEnvironment:
+        arena.attach(other=morphology, free_joint=True)
+        mjcf_str, mjcf_assets = arena.get_mjcf_str(), arena.get_mjcf_assets()
+        return cls(
+                mjcf_str=mjcf_str, mjcf_assets=mjcf_assets, configuration=configuration, backend=backend
                 )
 
     @property
