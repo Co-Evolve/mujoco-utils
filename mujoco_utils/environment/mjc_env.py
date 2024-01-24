@@ -19,8 +19,6 @@ from mujoco_utils.morphology import MJCFMorphology
 
 @struct.dataclass
 class MJCEnvState(BaseEnvState):
-    model: mujoco.MjModel
-    data: mujoco.MjData
     observations: Dict[str, np.ndarray]
     rng: np.random.RandomState
 
@@ -31,18 +29,15 @@ class MJCObservable(BaseObservable):
             name: str,
             low: np.ndarray,
             high: np.ndarray,
-            retriever: Callable[[mujoco.MjModel, mujoco.MjData, Any, Any], np.ndarray]
+            retriever: Callable[[MJCEnvState], np.ndarray]
             ) -> None:
         super().__init__(name=name, low=low, high=high, retriever=retriever)
 
     def __call__(
             self,
-            model: mujoco.MjModel,
-            data: mujoco.MjData,
-            *args,
-            **kwargs
+            state: MJCEnvState
             ) -> np.ndarray:
-        return super().__call__(model=model, data=data, *args, **kwargs)
+        return super().__call__(state=state)
 
 
 class MJCEnv(BaseMuJoCoEnvironment, ABC):
@@ -67,7 +62,7 @@ class MJCEnv(BaseMuJoCoEnvironment, ABC):
             self,
             state: MJCEnvState
             ) -> Tuple[List[mujoco.MjModel], List[mujoco.MjData]]:
-        return [state.model], [state.data]
+        return [state.mj_model], [state.mj_data]
 
     @property
     def observables(
@@ -93,50 +88,41 @@ class MJCEnv(BaseMuJoCoEnvironment, ABC):
         action_space = gymnasium.spaces.Box(low=low, high=high, dtype=np.float32)
         return action_space
 
-    def _get_observations(
+    def _update_observations(
             self,
-            model: mujoco.MjModel,
-            data: mujoco.MjData,
-            *args,
-            **kwargs
-            ) -> Dict[str, np.ndarray]:
+            state: MJCEnvState
+            ) -> MJCEnvState:
         observations = dict()
         for observable in self.observables:
             observations[observable.name] = observable(
-                    model=model, data=data, *args, **kwargs
+                    state=state
                     )
-        return observations
+        # noinspection PyUnresolvedReferences
+        return state.replace(observations=observations)
 
-    def _forward_simulation(
+    def _update_simulation(
             self,
-            model: mujoco.MjModel,
-            data: mujoco.MjData,
+            state: MJCEnvState,
             ctrl: ActType
-            ) -> mujoco.MjData:
-        data.ctrl[:] = ctrl
+            ) -> MJCEnvState:
+        mj_data = copy.deepcopy(state.mj_data)
         mujoco.mj_step(
-                m=model, d=data, nstep=self.environment_configuration.num_physics_steps_per_control_step
+                m=state.mj_model, d=mj_data, nstep=self.environment_configuration.num_physics_steps_per_control_step
                 )
         # As of MuJoCo 2.0, force-related quantities like cacc are not computed
         # unless there's a force sensor in the model.
         # See https://github.com/openai/gym/issues/1541
-        mujoco.mj_rnePostConstraint(model, data)
+        mujoco.mj_rnePostConstraint(state.mj_model, mj_data)
 
-        return data
+        # noinspection PyUnresolvedReferences
+        return state.replace(mj_data=mj_data)
 
-    @abc.abstractmethod
-    def _create_observables(
-            self
-            ) -> List[MJCObservable]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
     def step(
             self,
             state: MJCEnvState,
             action: np.ndarray
             ) -> MJCEnvState:
-        raise NotImplementedError
+        return super().step(state=state, action=action)
 
     def _prepare_reset(
             self
@@ -146,6 +132,12 @@ class MJCEnv(BaseMuJoCoEnvironment, ABC):
         return model, data
 
     @abc.abstractmethod
+    def _create_observables(
+            self
+            ) -> List[MJCObservable]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def reset(
             self,
             rng: np.random.RandomState
@@ -153,41 +145,30 @@ class MJCEnv(BaseMuJoCoEnvironment, ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _get_reward(
+    def _update_reward(
             self,
-            model: mujoco.MjModel,
-            data: mujoco.MjData,
-            *args,
-            **kwargs
-            ) -> float:
+            state: MJCEnvState,
+            previous_state: MJCEnvState
+            ) -> MJCEnvState:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _should_terminate(
+    def _update_terminated(
             self,
-            model: mujoco.MjModel,
-            data: mujoco.MjData,
-            *args,
-            **kwargs
-            ) -> float:
+            state: MJCEnvState
+            ) -> MJCEnvState:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _should_truncate(
+    def _update_truncated(
             self,
-            model: mujoco.MjModel,
-            data: mujoco.MjData,
-            *args,
-            **kwargs
-            ) -> float:
+            state: MJCEnvState
+            ) -> MJCEnvState:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _get_info(
+    def _update_info(
             self,
-            model: mujoco.MjModel,
-            data: mujoco.MjData,
-            *args,
-            **kwargs
-            ) -> Dict[str, Any]:
+            state: MJCEnvState
+            ) -> MJCEnvState:
         raise NotImplementedError

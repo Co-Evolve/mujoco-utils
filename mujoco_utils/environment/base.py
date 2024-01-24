@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import abc
-import dataclasses
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import chex
@@ -75,7 +74,7 @@ class BaseObservable:
             name: str,
             low: chex.Array,
             high: chex.Array,
-            retriever: Callable[[ModelType, DataType, Any, Any], chex.Array]
+            retriever: Callable[[BaseEnvState], chex.Array]
             ) -> None:
         self.name = name
         self.low = low
@@ -84,14 +83,9 @@ class BaseObservable:
 
     def __call__(
             self,
-            model: ModelType,
-            data: DataType,
-            *args,
-            **kwargs
+            state: BaseEnvState
             ) -> chex.Array:
-        return self.retriever(
-                model, data, *args, **kwargs
-                )
+        return self.retriever(state)
 
     @property
     def shape(
@@ -102,8 +96,8 @@ class BaseObservable:
 
 @struct.dataclass
 class BaseEnvState(abc.ABC):
-    model: ModelType
-    data: DataType
+    mj_model: mujoco.MjModel
+    mj_data: mujoco.MjData
     observations: Dict[str, chex.Array]
     reward: chex.Array
     terminated: chex.Array
@@ -287,13 +281,28 @@ class BaseMuJoCoEnvironment(abc.ABC):
         del self._action_space
         del self._observables
 
-    @abc.abstractmethod
-    def _forward_simulation(
+    def step(
             self,
-            model: ModelType,
-            data: DataType,
+            state: BaseEnvState,
+            action: chex.Array
+            ) -> BaseEnvState:
+        previous_state = state
+        state = self._update_simulation(state=state, ctrl=action)
+
+        state = self._update_observations(state=state)
+        state = self._update_reward(state=state, previous_state=previous_state)
+        state = self._update_terminated(state=state)
+        state = self._update_truncated(state=state)
+        state = self._update_info(state=state)
+
+        return state
+
+    @abc.abstractmethod
+    def _update_simulation(
+            self,
+            state: BaseEnvState,
             ctrl: chex.Array
-            ) -> DataType:
+            ) -> BaseEnvState:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -303,13 +312,10 @@ class BaseMuJoCoEnvironment(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _get_observations(
+    def _update_observations(
             self,
-            model: ModelType,
-            data: DataType,
-            *args,
-            **kwargs
-            ) -> Dict[str, chex.Array]:
+            state: BaseEnvState
+            ) -> BaseEnvState:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -319,15 +325,9 @@ class BaseMuJoCoEnvironment(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def step(
-            self,
-            state: BaseEnvState,
-            action: chex.Array
-            ) -> BaseEnvState:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def _prepare_reset(self) -> Tuple[ModelType, DataType]:
+    def _prepare_reset(
+            self
+            ) -> Tuple[Tuple[ModelType, DataType], ...]:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -344,41 +344,30 @@ class BaseMuJoCoEnvironment(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _get_reward(
+    def _update_reward(
             self,
-            model: ModelType,
-            data: DataType,
-            *args,
-            **kwargs
-            ) -> float:
+            state: BaseEnvState,
+            previous_state: BaseEnvState
+            ) -> BaseEnvState:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _should_terminate(
+    def _update_terminated(
             self,
-            model: ModelType,
-            data: DataType,
-            *args,
-            **kwargs
-            ) -> float:
+            state: BaseEnvState
+            ) -> BaseEnvState:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _should_truncate(
+    def _update_truncated(
             self,
-            model: ModelType,
-            data: DataType,
-            *args,
-            **kwargs
-            ) -> float:
+            state: BaseEnvState
+            ) -> BaseEnvState:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _get_info(
+    def _update_info(
             self,
-            model: ModelType,
-            data: DataType,
-            *args,
-            **kwargs
-            ) -> Dict[str, Any]:
+            state: BaseEnvState
+            ) -> BaseEnvState:
         raise NotImplementedError

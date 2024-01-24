@@ -52,8 +52,8 @@ def mjx_get_model(
 
 @struct.dataclass
 class MJXEnvState(BaseEnvState):
-    model: mjx.Model
-    data: mjx.Data
+    mjx_model: mjx.Model
+    mjx_data: mjx.Data
     observations: Dict[str, jax.Array]
     rng: chex.PRNGKey
 
@@ -64,20 +64,15 @@ class MJXObservable(BaseObservable):
             name: str,
             low: jnp.ndarray,
             high: jnp.ndarray,
-            retriever: Callable[[mjx.Model, mjx.Data, Any, Any], jnp.ndarray]
+            retriever: Callable[[MJXEnvState], jnp.ndarray]
             ) -> None:
         super().__init__(name=name, low=low, high=high, retriever=retriever)
 
     def __call__(
             self,
-            model: mjx.Model,
-            data: mjx.Data,
-            *args,
-            **kwargs
+            state: MJXEnvState
             ) -> jnp.ndarray:
-        return super().__call__(
-                model=model, data=data, *args, **kwargs
-                )
+        return super().__call__(state=state)
 
 
 class MJXEnv(BaseMuJoCoEnvironment, ABC):
@@ -130,8 +125,8 @@ class MJXEnv(BaseMuJoCoEnvironment, ABC):
             state: MJXEnvState
             ) -> Tuple[List[mujoco.MjModel], List[mujoco.MjData]]:
         num_models = 1 if self.environment_configuration.render_mode == "human" else self._get_batch_size(state=state)
-        mj_models = mjx_get_model(mj_model=self.frozen_mj_model, mjx_model=state.model, n_mj_models=num_models)
-        mj_datas = mjx.get_data(m=mj_models[0], d=state.data)
+        mj_models = mjx_get_model(mj_model=state.mj_model, mjx_model=state.mjx_model, n_mj_models=num_models)
+        mj_datas = mjx.get_data(m=mj_models[0], d=state.mjx_data)
         if not isinstance(mj_datas, list):
             mj_datas = [mj_datas]
         return mj_models, mj_datas
@@ -162,36 +157,35 @@ class MJXEnv(BaseMuJoCoEnvironment, ABC):
 
     def _get_observations(
             self,
-            model: mjx.Model,
-            data: mjx.Data,
-            *args,
-            **kwargs
+            state: MJXEnvState
             ) -> Dict[str, jnp.ndarray]:
         observations = jax.tree_util.tree_map(
                 lambda
                     observable: (observable.name, observable(
-                        model=model, data=data, *args, **kwargs
+                        state=state
                         )), self.observables
                 )
         return dict(observations)
 
-    def _forward_simulation(
+    def _update_simulation(
             self,
-            model: mjx.Model,
-            data: mjx.Data,
+            state: MJXEnvState,
             ctrl: jnp.ndarray
-            ) -> mjx.Data:
+            ) -> MJXEnvState:
+        mjx_data = state.mjx_data
+
         def _simulation_step(
                 _data,
                 _
                 ) -> Tuple[mjx.Data, None]:
             _data = _data.replace(ctrl=ctrl)
-            return mjx.step(model, _data), None
+            return mjx.step(state.mjx_model, _data), None
 
         mjx_data, _ = jax.lax.scan(
-                _simulation_step, data, (), self.environment_configuration.num_physics_steps_per_control_step
+                _simulation_step, mjx_data, (), self.environment_configuration.num_physics_steps_per_control_step
                 )
-        return mjx_data
+        # noinspection PyUnresolvedReferences
+        return state.replace(mjx_data=mjx_data)
 
     def close(
             self
@@ -200,27 +194,29 @@ class MJXEnv(BaseMuJoCoEnvironment, ABC):
         del self._mjx_model
         del self._mjx_data
 
-    @abc.abstractmethod
-    def _create_observables(
-            self
-            ) -> List[MJXObservable]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
     def step(
             self,
             state: MJXEnvState,
             action: jnp.ndarray
             ) -> MJXEnvState:
-        raise NotImplementedError
+        return super().step(state=state, action=action)
 
     def _prepare_reset(
             self
-            ) -> Tuple[mjx.Model, mjx.Data]:
+            ) -> Tuple[Tuple[mujoco.MjModel, mujoco.MjData], Tuple[mjx.Model, mjx.Data]]:
+        mj_model = copy.deepcopy(self.frozen_mj_model)
+        mj_data = copy.deepcopy(self.frozen_mj_data)
+
         # No need to actually create a copy here: jax structures are immutable
-        model = self.frozen_mjx_model
-        data = self.frozen_mjx_data
-        return model, data
+        mjx_model = self.frozen_mjx_model
+        mjx_data = self.frozen_mjx_data
+        return (mj_model, mj_data), (mjx_model, mjx_data)
+
+    @abc.abstractmethod
+    def _create_observables(
+            self
+            ) -> List[MJXObservable]:
+        raise NotImplementedError
 
     @abc.abstractmethod
     def reset(
@@ -230,41 +226,30 @@ class MJXEnv(BaseMuJoCoEnvironment, ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _get_reward(
+    def _update_reward(
             self,
-            model: mjx.Model,
-            data: mjx.Data,
-            *args,
-            **kwargs
-            ) -> float:
+            state: MJXEnvState,
+            previous_state: MJXEnvState
+            ) -> MJXEnvState:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _should_terminate(
+    def _update_terminated(
             self,
-            model: mjx.Model,
-            data: mjx.Data,
-            *args,
-            **kwargs
-            ) -> float:
+            state: MJXEnvState
+            ) -> MJXEnvState:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _should_truncate(
+    def _update_truncated(
             self,
-            model: mjx.Model,
-            data: mjx.Data,
-            *args,
-            **kwargs
-            ) -> float:
+            state: MJXEnvState
+            ) -> MJXEnvState:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _get_info(
+    def _update_info(
             self,
-            model: mjx.Model,
-            data: mjx.Data,
-            *args,
-            **kwargs
-            ) -> Dict[str, Any]:
+            state: MJXEnvState
+            ) -> MJXEnvState:
         raise NotImplementedError
