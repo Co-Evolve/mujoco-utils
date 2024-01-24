@@ -96,8 +96,8 @@ class BaseObservable:
 
 @struct.dataclass
 class BaseEnvState(abc.ABC):
-    mj_model: mujoco.MjModel
-    mj_data: mujoco.MjData
+    mj_model: mujoco.MjModel = struct.field(pytree_node=False)
+    mj_data: mujoco.MjData = struct.field(pytree_node=False)
     observations: Dict[str, chex.Array]
     reward: chex.Array
     terminated: chex.Array
