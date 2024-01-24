@@ -155,17 +155,18 @@ class MJXEnv(BaseMuJoCoEnvironment, ABC):
         action_space = mjx_spaces.Box(low=low, high=high, shape=low.shape, dtype=jnp.float32)
         return action_space
 
-    def _get_observations(
+    def _update_observations(
             self,
             state: MJXEnvState
-            ) -> Dict[str, jnp.ndarray]:
+            ) -> MJXEnvState:
         observations = jax.tree_util.tree_map(
                 lambda
                     observable: (observable.name, observable(
                         state=state
                         )), self.observables
                 )
-        return dict(observations)
+        # noinspection PyUnresolvedReferences
+        return state.replace(dict(observations))
 
     def _update_simulation(
             self,
