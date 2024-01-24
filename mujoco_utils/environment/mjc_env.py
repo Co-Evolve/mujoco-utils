@@ -27,7 +27,9 @@ class MJCEnvState(BaseEnvState):
             self,
             **kwargs
             ) -> MJCEnvState:
-        return super().replace(**kwargs)
+        for k, value in kwargs.items():
+            self.__setattr__(k, value)
+        return self
 
 
 class MJCObservable(BaseObservable):

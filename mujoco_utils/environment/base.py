@@ -110,14 +110,6 @@ class BaseEnvState(abc.ABC):
     info: Dict[str, Any]
     rng: np.random.RandomState | chex.PRNGKey
 
-    def replace(
-            self,
-            **kwargs
-            ) -> BaseEnvState:
-        for k, value in kwargs.items():
-            self.__setattr__(k, value)
-        return self
-
 
 class BaseMuJoCoEnvironment(abc.ABC):
     box_space: BoxSpaceType = None
