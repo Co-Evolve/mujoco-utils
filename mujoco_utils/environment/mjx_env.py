@@ -225,86 +225,78 @@ class MJXEnv(BaseMuJoCoEnvironment, ABC):
 
         return jax.lax.cond(pred, if_done, if_not_done, state)
 
+    def _prepare_reset(
+            self
+            ) -> Tuple[Tuple[mujoco.MjModel, mujoco.MjData], Tuple[mjx.Model, mjx.Data]]:
+        mj_model = copy.deepcopy(self.frozen_mj_model)
+        mj_data = copy.deepcopy(self.frozen_mj_data)
 
-def _prepare_reset(
-        self
-        ) -> Tuple[Tuple[mujoco.MjModel, mujoco.MjData], Tuple[mjx.Model, mjx.Data]]:
-    mj_model = copy.deepcopy(self.frozen_mj_model)
-    mj_data = copy.deepcopy(self.frozen_mj_data)
+        # No need to actually create a copy here: jax structures are immutable
+        mjx_model = self.frozen_mjx_model
+        mjx_data = self.frozen_mjx_data
+        return (mj_model, mj_data), (mjx_model, mjx_data)
 
-    # No need to actually create a copy here: jax structures are immutable
-    mjx_model = self.frozen_mjx_model
-    mjx_data = self.frozen_mjx_data
-    return (mj_model, mj_data), (mjx_model, mjx_data)
+    def _finish_reset(
+            self,
+            models_and_datas: Tuple[Tuple[mujoco.MjModel, mujoco.MjData], Tuple[mjx.Model, mjx.Data]],
+            rng: np.random.RandomState
+            ) -> MJXEnvState:
+        (mj_model, mj_data), (mjx_model, mjx_data) = models_and_datas
+        mjx_data = mjx.forward(m=mjx_model, d=mjx_data)
+        state = MJXEnvState(
+                mj_model=mj_model,
+                mj_data=mj_data,
+                mjx_model=mjx_model,
+                mjx_data=mjx_data,
+                observations={},
+                reward=0,
+                terminated=False,
+                truncated=False,
+                info={},
+                rng=rng
+                )
+        state = self._update_observations(state=state)
+        state = self._update_info(state=state)
+        return state
 
+    @abc.abstractmethod
+    def _create_observables(
+            self
+            ) -> List[MJXObservable]:
+        raise NotImplementedError
 
-def _finish_reset(
-        self,
-        models_and_datas: Tuple[Tuple[mujoco.MjModel, mujoco.MjData], Tuple[mjx.Model, mjx.Data]],
-        rng: np.random.RandomState
-        ) -> MJXEnvState:
-    (mj_model, mj_data), (mjx_model, mjx_data) = models_and_datas
-    mjx_data = mjx.forward(m=mjx_model, d=mjx_data)
-    state = MJXEnvState(
-            mj_model=mj_model,
-            mj_data=mj_data,
-            mjx_model=mjx_model,
-            mjx_data=mjx_data,
-            observations={},
-            reward=0,
-            terminated=False,
-            truncated=False,
-            info={},
-            rng=rng
-            )
-    state = self._update_observations(state=state)
-    state = self._update_info(state=state)
-    return state
+    @abc.abstractmethod
+    def reset(
+            self,
+            rng: jnp.ndarray
+            ) -> MJXEnvState:
+        raise NotImplementedError
 
+    @abc.abstractmethod
+    def _update_reward(
+            self,
+            state: MJXEnvState,
+            previous_state: MJXEnvState
+            ) -> MJXEnvState:
+        raise NotImplementedError
 
-@abc.abstractmethod
-def _create_observables(
-        self
-        ) -> List[MJXObservable]:
-    raise NotImplementedError
+    @abc.abstractmethod
+    def _update_terminated(
+            self,
+            state: MJXEnvState
+            ) -> MJXEnvState:
+        raise NotImplementedError
 
+    @abc.abstractmethod
+    def _update_truncated(
+            self,
+            state: MJXEnvState
+            ) -> MJXEnvState:
+        raise NotImplementedError
 
-@abc.abstractmethod
-def reset(
-        self,
-        rng: jnp.ndarray
-        ) -> MJXEnvState:
-    raise NotImplementedError
-
-
-@abc.abstractmethod
-def _update_reward(
-        self,
-        state: MJXEnvState,
-        previous_state: MJXEnvState
-        ) -> MJXEnvState:
-    raise NotImplementedError
-
-
-@abc.abstractmethod
-def _update_terminated(
-        self,
-        state: MJXEnvState
-        ) -> MJXEnvState:
-    raise NotImplementedError
-
-
-@abc.abstractmethod
-def _update_truncated(
-        self,
-        state: MJXEnvState
-        ) -> MJXEnvState:
-    raise NotImplementedError
-
-
-@abc.abstractmethod
-def _update_info(
-        self,
-        state: MJXEnvState
-        ) -> MJXEnvState:
-    raise NotImplementedError
+    @abc.abstractmethod
+    def _update_info(
+            self,
+            state: MJXEnvState
+            ) -> MJXEnvState:
+        raise NotImplementedError
