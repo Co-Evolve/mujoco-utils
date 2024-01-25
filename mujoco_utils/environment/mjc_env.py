@@ -211,7 +211,7 @@ class VectorMJCEnvState(MJCEnvState):
     rng: List[np.random.RandomState]
 
 
-class VectorMJCEnvWrapper(BaseEnvironment):
+class ThreadedVectorMJCEnvWrapper(BaseEnvironment):
     def __init__(
             self,
             create_env_fn: Callable[[], BaseEnvironment],
@@ -341,13 +341,6 @@ class VectorMJCEnvWrapper(BaseEnvironment):
             # Only render first env; Has to be in main thread
             return self._envs[0].render(state=self._states[0])
 
-        # frames_per_env = list(
-        #         self._pool.map(
-        #                 lambda
-        #                     env,
-        #                     ste: env.render(state=ste), envs, states
-        #                 )
-        #         )
         frames = []
         for env, state in zip(self._envs, self._states):
             frames += env.render(state=state)
