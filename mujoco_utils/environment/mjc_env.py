@@ -3,16 +3,19 @@ from __future__ import annotations
 import abc
 import copy
 from abc import ABC
+from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable, Dict, List, Tuple
 
 import gymnasium
 import mujoco
 import numpy as np
 from flax import struct
-from gymnasium.core import ActType
+from gymnasium.core import ActType, RenderFrame
+from gymnasium.vector.utils import batch_space
 
 from mujoco_utils.arena import MJCFArena
-from mujoco_utils.environment.base import BaseEnvState, BaseMuJoCoEnvironment, BaseObservable, \
+from mujoco_utils.environment.base import BaseEnvState, BaseEnvironment, BaseMuJoCoEnvironment, BaseObservable, \
     MuJoCoEnvironmentConfiguration
 from mujoco_utils.morphology import MJCFMorphology
 
@@ -194,3 +197,158 @@ class MJCEnv(BaseMuJoCoEnvironment, ABC):
             state: MJCEnvState
             ) -> MJCEnvState:
         raise NotImplementedError
+
+
+@struct.dataclass
+class VectorMJCEnvState(MJCEnvState):
+    mj_model: List[mujoco.MjModel] = struct.field(pytree_node=False)
+    mj_data: List[mujoco.MjData] = struct.field(pytree_node=False)
+    observations: Dict[str, np.ndarray]
+    reward: np.ndarray
+    terminated: np.ndarray
+    truncated: np.ndarray
+    info: List[Dict[str, Any]]
+    rng: List[np.random.RandomState]
+
+
+class VectorMJCEnv(BaseEnvironment):
+    def __init__(
+            self,
+            create_env_fn: Callable[[], BaseEnvironment],
+            num_environments: int
+            ) -> None:
+        self._create_env_fn = create_env_fn
+        self._num_environments = num_environments
+        dummy_env = create_env_fn()
+        self._action_space = batch_space(dummy_env.action_space, self._num_environments)
+        self._observation_space = batch_space(dummy_env.observation_space, self._num_environments)
+        self._actuators = dummy_env.actuators
+        super().__init__(configuration=dummy_env.environment_configuration)
+        dummy_env.close()
+
+        self._pool = ThreadPoolExecutor(max_workers=num_environments)
+        self._envs = self._create_envs()
+        self._states = None
+
+    def _create_envs(
+            self
+            ) -> List[MJCEnv]:
+        environments = list(
+                self._pool.map(
+                        lambda
+                            _: self._create_env_fn(), range(self._num_environments)
+                        )
+                )
+        return environments
+
+    @property
+    def _merged_states(
+            self
+            ) -> VectorMJCEnvState:
+        mj_models = []
+        mj_datas = []
+        observations = defaultdict(list)
+        reward = []
+        terminated = []
+        truncated = []
+        info = []
+        rng = []
+        for env_id, state in enumerate(self._states):
+            mj_models.append(state.mj_model)
+            mj_datas.append(state.mj_data)
+            for k, o in state.observations.items():
+                observations[k].append(o)
+            reward.append(state.reward)
+            terminated.append(state.terminated)
+            truncated.append(state.truncated)
+            info.append(state.info)
+            rng.append(state.rng)
+
+        observations = {k: np.stack(v) for k, v in observations.items()}
+
+        return VectorMJCEnvState(
+                mj_model=mj_models,
+                mj_data=mj_datas,
+                observations=observations,
+                reward=np.array(reward),
+                terminated=np.array(terminated),
+                truncated=np.array(truncated),
+                info=info,
+                rng=rng
+                )
+
+    @property
+    def action_space(
+            self
+            ) -> gymnasium.spaces.Space:
+        return self._action_space
+
+    @property
+    def actuators(
+            self
+            ) -> List[str]:
+        return self._actuators
+
+    @property
+    def observation_space(
+            self
+            ) -> gymnasium.spaces.Space:
+        return self._observation_space
+
+    def step(
+            self,
+            state: VectorMJCEnvState,
+            action: np.ndarray
+            ) -> VectorMJCEnvState:
+        self._states = list(
+                self._pool.map(
+                        lambda
+                            env,
+                            ste,
+                            act: env.step(state=ste, action=act), self._envs, self._states, action
+                        )
+                )
+        return self._merged_states
+
+    def reset(
+            self,
+            rng: List[np.random.RandomState]
+            ) -> VectorMJCEnvState:
+        self._states = list(
+                self._pool.map(
+                        lambda
+                            env,
+                            sub_rng: env.reset(sub_rng), self._envs, rng
+                        )
+                )
+
+        return self._merged_states
+
+    def render(
+            self,
+            state: VectorMJCEnvState
+            ) -> List[RenderFrame] | None:
+        envs = self._envs
+        states = self._states
+        if self.environment_configuration.render_mode == "human":
+            # Only render first env; Has to be in main thread
+            return envs[0].render(state=self._states[0])
+
+        frames_per_env = list(
+                self._pool.map(
+                        lambda
+                            env,
+                            ste: env.render(state=ste), envs, states
+                        )
+                )
+        frames = []
+        for env_frames in frames_per_env:
+            frames += env_frames
+        return frames
+
+    def close(
+            self
+            ) -> None:
+        self._pool.shutdown()
+        for env in self._envs:
+            env.close()
