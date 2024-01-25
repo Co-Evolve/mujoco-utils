@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import List
 
 import chex
 import numpy as np
@@ -19,21 +19,12 @@ class DualMuJoCoEnvironment(BaseEnvironment):
 
     def __init__(
             self,
-            mjcf_str: str,
-            mjcf_assets: Dict[str, Any],
-            configuration: MuJoCoEnvironmentConfiguration,
-            backend: str, ) -> None:
-        assert backend in ["MJC", "MJX"], f"Backend must either be 'MJC' or 'MJX'. {backend} was given."
-
-        super().__init__(configuration=configuration)
-        if backend == "MJC":
-            env_class = self.MJC_ENV_CLASS
-        else:
-            env_class = self.MJX_ENV_CLASS
-
-        self._env = env_class(
-                mjcf_str=mjcf_str, mjcf_assets=mjcf_assets, configuration=configuration
-                )
+            env: MJCEnv | MJXEnv,
+            backend: str
+            ) -> None:
+        super().__init__(configuration=env.environment_configuration)
+        self.backend = backend
+        self._env = env
 
     @classmethod
     def from_morphology_and_arena(
@@ -41,12 +32,20 @@ class DualMuJoCoEnvironment(BaseEnvironment):
             morphology: MJCFMorphology,
             arena: MJCFArena,
             configuration: MuJoCoEnvironmentConfiguration,
-            backend: str, ) -> DualMuJoCoEnvironment:
+            backend: str
+            ) -> DualMuJoCoEnvironment:
+        assert backend in ["MJC", "MJX"], f"Backend must either be 'MJC' or 'MJX'. {backend} was given."
+
         arena.attach(other=morphology, free_joint=True)
-        mjcf_str, mjcf_assets = arena.get_mjcf_str(), arena.get_mjcf_assets()
-        return cls(
-                mjcf_str=mjcf_str, mjcf_assets=mjcf_assets, configuration=configuration, backend=backend
+
+        if backend == "MJC":
+            env_class = cls.MJC_ENV_CLASS
+        else:
+            env_class = cls.MJX_ENV_CLASS
+        env = env_class.from_morphology_and_arena(
+                morphology=morphology, arena=arena, configuration=configuration
                 )
+        return cls(env=env, backend=backend)
 
     @property
     def action_space(
