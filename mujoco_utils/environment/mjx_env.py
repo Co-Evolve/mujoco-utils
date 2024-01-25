@@ -223,10 +223,9 @@ class MJXEnv(BaseMuJoCoEnvironment, ABC):
     def _prepare_reset(
             self
             ) -> Tuple[Tuple[mujoco.MjModel, mujoco.MjData], Tuple[mjx.Model, mjx.Data]]:
-        mj_model = copy.deepcopy(self.frozen_mj_model)
-        mj_data = copy.deepcopy(self.frozen_mj_data)
+        mj_model = self.frozen_mj_model
+        mj_data = self.frozen_mj_data
 
-        # No need to actually create a copy here: jax structures are immutable
         mjx_model = self.frozen_mjx_model
         mjx_data = self.frozen_mjx_data
         return (mj_model, mj_data), (mjx_model, mjx_data)
