@@ -211,7 +211,7 @@ class VectorMJCEnvState(MJCEnvState):
     rng: List[np.random.RandomState]
 
 
-class VectorMJCEnv(BaseEnvironment):
+class VectorMJCEnvWrapper(BaseEnvironment):
     def __init__(
             self,
             create_env_fn: Callable[[], BaseEnvironment],
