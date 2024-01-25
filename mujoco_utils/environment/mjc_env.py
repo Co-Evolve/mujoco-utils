@@ -126,7 +126,22 @@ class MJCEnv(BaseMuJoCoEnvironment, ABC):
             state: MJCEnvState,
             action: np.ndarray
             ) -> MJCEnvState:
-        return super().step(state=state, action=action)
+        state = super().step(state=state, action=action)
+        if state.terminated | state.truncated:
+            reset_state = self.reset(rng=state.rng)
+
+            info = reset_state.info
+            info.update(
+                    {
+                            "last_obs": state.observations, "last_info": state.info}
+                    )
+
+            # noinspection PyUnresolvedReferences
+            return reset_state.replace(
+                    reward=state.reward, terminated=state.terminated, truncated=state.truncated, info=info
+                    )
+
+        return state
 
     def _prepare_reset(
             self
