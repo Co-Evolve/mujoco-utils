@@ -220,7 +220,8 @@ class VectorMJCEnvWrapper(BaseEnvironment):
         self._create_env_fn = create_env_fn
         self._num_environments = num_environments
         dummy_env = create_env_fn()
-        self._action_space = batch_space(dummy_env.action_space, self._num_environments)
+        self._single_action_space = dummy_env.action_space
+        self._action_space = batch_space(self._single_action_space, self._num_environments)
         self._observation_space = batch_space(dummy_env.observation_space, self._num_environments)
         self._actuators = dummy_env.actuators
         super().__init__(configuration=dummy_env.environment_configuration)
@@ -278,6 +279,12 @@ class VectorMJCEnvWrapper(BaseEnvironment):
                 info=info,
                 rng=rng
                 )
+
+    @property
+    def single_action_space(
+            self
+            ) -> gymnasium.spaces.Space:
+        return self._single_action_space
 
     @property
     def action_space(
