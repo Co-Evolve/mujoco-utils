@@ -207,7 +207,7 @@ class VectorMJCEnvState(MJCEnvState):
     reward: np.ndarray
     terminated: np.ndarray
     truncated: np.ndarray
-    info: List[Dict[str, Any]]
+    info: Dict[str, Any]
     rng: List[np.random.RandomState]
 
 
@@ -251,7 +251,7 @@ class VectorMJCEnvWrapper(BaseEnvironment):
         reward = []
         terminated = []
         truncated = []
-        info = []
+        info = defaultdict(list)
         rng = []
         for env_id, state in enumerate(self._states):
             mj_models.append(state.mj_model)
@@ -261,10 +261,12 @@ class VectorMJCEnvWrapper(BaseEnvironment):
             reward.append(state.reward)
             terminated.append(state.terminated)
             truncated.append(state.truncated)
-            info.append(state.info)
+            for k, o in state.info.items():
+                info[k].append(o)
             rng.append(state.rng)
 
         observations = {k: np.stack(v) for k, v in observations.items()}
+        info = {k: np.array(v) for k, v in info.items()}
 
         return VectorMJCEnvState(
                 mj_model=mj_models,
