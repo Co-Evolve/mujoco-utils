@@ -208,14 +208,9 @@ class MJXEnv(BaseMuJoCoEnvironment, ABC):
                 _state: MJXEnvState
                 ) -> MJXEnvState:
             reset_state = self.reset(rng=_state.rng)
-
-            info = reset_state.info
-            info.update(
-                    {"last_obs": _state.observations, "last_info": _state.info}
-                    )
             # noinspection PyUnresolvedReferences
             return reset_state.replace(
-                    reward=_state.reward, terminated=_state.terminated, truncated=_state.truncated, info=info
+                    reward=_state.reward, terminated=_state.terminated, truncated=_state.truncated
                     )
 
         def if_not_done(
