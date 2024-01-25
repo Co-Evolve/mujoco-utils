@@ -35,9 +35,6 @@ class DualMuJoCoEnvironment(BaseEnvironment):
             backend: str
             ) -> DualMuJoCoEnvironment:
         assert backend in ["MJC", "MJX"], f"Backend must either be 'MJC' or 'MJX'. {backend} was given."
-
-        arena.attach(other=morphology, free_joint=True)
-
         if backend == "MJC":
             env_class = cls.MJC_ENV_CLASS
         else:
