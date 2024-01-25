@@ -211,11 +211,11 @@ class MJXEnv(BaseMuJoCoEnvironment, ABC):
 
             info = reset_state.info
             info.update(
-                    {"last_obs": state.observations, "last_info": state.info}
+                    {"last_obs": _state.observations, "last_info": _state.info}
                     )
             # noinspection PyUnresolvedReferences
             return reset_state.replace(
-                    reward=state.reward, terminated=state.terminated, truncated=state.truncated, info=info
+                    reward=_state.reward, terminated=_state.terminated, truncated=_state.truncated, info=info
                     )
 
         def if_not_done(
