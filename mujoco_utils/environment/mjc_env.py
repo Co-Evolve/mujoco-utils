@@ -337,22 +337,20 @@ class VectorMJCEnvWrapper(BaseEnvironment):
             self,
             state: VectorMJCEnvState
             ) -> List[RenderFrame] | None:
-        envs = self._envs
-        states = self._states
         if self.environment_configuration.render_mode == "human":
             # Only render first env; Has to be in main thread
-            return envs[0].render(state=self._states[0])
+            return self._envs[0].render(state=self._states[0])
 
-        frames_per_env = list(
-                self._pool.map(
-                        lambda
-                            env,
-                            ste: env.render(state=ste), envs, states
-                        )
-                )
+        # frames_per_env = list(
+        #         self._pool.map(
+        #                 lambda
+        #                     env,
+        #                     ste: env.render(state=ste), envs, states
+        #                 )
+        #         )
         frames = []
-        for env_frames in frames_per_env:
-            frames += env_frames
+        for env, state in zip(self._envs, self._states):
+            frames += env.render(state=state)
         return frames
 
     def close(
