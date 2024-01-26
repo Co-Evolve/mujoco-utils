@@ -88,7 +88,8 @@ class Box(Space):
             low: float | jax.Array,
             high: float | jax.Array,
             shape: Tuple[int],
-            dtype: jnp.dtype = jnp.float32, ):
+            dtype: jnp.dtype = jnp.float32
+            ):
         self.low = low
         self.high = high
         self.shape = shape
