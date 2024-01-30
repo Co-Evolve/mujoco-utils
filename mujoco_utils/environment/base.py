@@ -309,7 +309,11 @@ class BaseMuJoCoEnvironment(BaseEnvironment, abc.ABC):
             ) -> List[RenderFrame] | None:
         camera_ids = self.environment_configuration.camera_ids or [-1]
 
-        mj_models, mj_datas = self._get_mj_models_and_datas_to_render(state=state)
+        try:
+            mj_models, mj_datas = self._get_mj_models_and_datas_to_render(state=state)
+        except ValueError:
+            # Waiting on https://github.com/google-deepmind/mujoco/issues/1379
+            return None
 
         frames = []
         for i, (model, data) in enumerate(zip(mj_models, mj_datas)):
