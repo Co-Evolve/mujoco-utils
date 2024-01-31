@@ -27,7 +27,10 @@ class MuJoCoEnvironmentConfiguration:
             simulation_time: float = 10,
             camera_ids: List[int] | None = None,
             render_size: Tuple[int, int] | None = (240, 320),
-            render_mode: Optional[str] = None
+            render_mode: Optional[str] = None,
+            solver_iterations: int | None = None,
+            solver_ls_iterations: int | None = None,
+            disable_eulerdamp: bool | None = None
             ) -> None:
         self.time_scale = time_scale
         self.num_physics_steps_per_control_step = num_physics_steps_per_control_step
@@ -35,6 +38,9 @@ class MuJoCoEnvironmentConfiguration:
         self.camera_ids = camera_ids or [0]
         self.render_size = render_size
         self.render_mode = render_mode
+        self.solver_iterations = solver_iterations
+        self.solver_ls_iterations = solver_ls_iterations
+        self.disable_eulerdamp = disable_eulerdamp
 
     @property
     def control_timestep(
@@ -244,6 +250,12 @@ class BaseMuJoCoEnvironment(BaseEnvironment, abc.ABC):
         mj_model.vis.global_.offheight = self.environment_configuration.render_size[0]
         mj_model.vis.global_.offwidth = self.environment_configuration.render_size[1]
         mj_model.opt.timestep = self.environment_configuration.physics_timestep
+        if self.environment_configuration.solver_iterations:
+            mj_model.opt.iterations = self.environment_configuration.solver_iterations
+        if self.environment_configuration.solver_ls_iterations:
+            mj_model.opt.solver_ls_iterations = self.environment_configuration.solver_ls_iterations
+        if self.environment_configuration.disable_eulerdamp:
+            mj_model.opt.disableflags |= mujoco.mjtDisableBit.mjDSBL_EULERDAMP
         mj_data = mujoco.MjData(mj_model)
         return mj_model, mj_data
 
