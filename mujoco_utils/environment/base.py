@@ -253,7 +253,7 @@ class BaseMuJoCoEnvironment(BaseEnvironment, abc.ABC):
         if self.environment_configuration.solver_iterations:
             mj_model.opt.iterations = self.environment_configuration.solver_iterations
         if self.environment_configuration.solver_ls_iterations:
-            mj_model.opt.solver_ls_iterations = self.environment_configuration.solver_ls_iterations
+            mj_model.opt.ls_iterations = self.environment_configuration.solver_ls_iterations
         if self.environment_configuration.disable_eulerdamp:
             mj_model.opt.disableflags |= mujoco.mjtDisableBit.mjDSBL_EULERDAMP
         mj_data = mujoco.MjData(mj_model)
