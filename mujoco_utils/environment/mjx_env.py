@@ -197,31 +197,6 @@ class MJXEnv(BaseMuJoCoEnvironment, ABC):
         del self._mjx_model
         del self._mjx_data
 
-    def step(
-            self,
-            state: MJXEnvState,
-            action: jnp.ndarray
-            ) -> MJXEnvState:
-        state = super().step(state=state, action=action)
-
-        pred = state.terminated | state.truncated
-
-        def if_done(
-                _state: MJXEnvState
-                ) -> MJXEnvState:
-            reset_state = self.reset(rng=_state.rng)
-            # noinspection PyUnresolvedReferences
-            return reset_state.replace(
-                    reward=_state.reward, terminated=_state.terminated, truncated=_state.truncated
-                    )
-
-        def if_not_done(
-                _state: MJXEnvState
-                ) -> MJXEnvState:
-            return _state
-
-        return jax.lax.cond(pred, if_done, if_not_done, state)
-
     def _prepare_reset(
             self
             ) -> Tuple[Tuple[mujoco.MjModel, mujoco.MjData], Tuple[mjx.Model, mjx.Data]]:

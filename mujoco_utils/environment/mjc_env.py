@@ -121,21 +121,6 @@ class MJCEnv(BaseMuJoCoEnvironment, ABC):
         # noinspection PyUnresolvedReferences
         return state.replace(mj_data=mj_data)
 
-    def step(
-            self,
-            state: MJCEnvState,
-            action: np.ndarray
-            ) -> MJCEnvState:
-        state = super().step(state=state, action=action)
-        if state.terminated | state.truncated:
-            reset_state = self.reset(rng=state.rng)
-            # noinspection PyUnresolvedReferences
-            return reset_state.replace(
-                    reward=state.reward, terminated=state.terminated, truncated=state.truncated
-                    )
-
-        return state
-
     def _prepare_reset(
             self
             ) -> Tuple[mujoco.MjModel, mujoco.MjData]:
