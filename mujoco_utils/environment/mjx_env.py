@@ -119,6 +119,8 @@ class MJXEnv(BaseMuJoCoEnvironment, ABC):
             return state.reward.shape[0]
         except IndexError:
             return 1
+        except AttributeError:
+            return 1
 
     def _get_mj_models_and_datas_to_render(
             self,
