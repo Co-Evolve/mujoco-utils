@@ -47,6 +47,8 @@ def mjx_get_model(
             pass
         except ValueError:
             pass
+        except IndexError:
+            pass
     return mj_models
 
 
