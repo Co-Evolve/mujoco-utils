@@ -10,7 +10,7 @@ authors = [
 ]
 description = "A unified framework for implementing and interfacing with MuJoCo and MuJoCo-XLA simulation environments."
 readme = {file = "README.md", content-type = "text/markdown"}
-license = {text = "Apache License 2.0"}
+license = {text = "MIT"}
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
