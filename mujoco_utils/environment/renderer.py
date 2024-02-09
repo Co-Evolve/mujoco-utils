@@ -15,46 +15,42 @@ This will only be used until this version is ported as a Gymnasium release.
 """
 
 
-def _import_egl(
-        width,
-        height
-        ):
+def _import_egl(width, height):
     from mujoco.egl import GLContext
 
     return GLContext(width, height)
 
 
-def _import_glfw(
-        width,
-        height
-        ):
+def _import_glfw(width, height):
     from mujoco.glfw import GLContext
 
     return GLContext(width, height)
 
 
-def _import_osmesa(
-        width,
-        height
-        ):
+def _import_osmesa(width, height):
     from mujoco.osmesa import GLContext
 
     return GLContext(width, height)
 
 
 _ALL_RENDERERS = collections.OrderedDict(
-        [("glfw", _import_glfw), ("egl", _import_egl), ("osmesa", _import_osmesa), ]
-        )
+    [
+        ("glfw", _import_glfw),
+        ("egl", _import_egl),
+        ("osmesa", _import_osmesa),
+    ]
+)
 
 
 class BaseRender:
     def __init__(
-            self,
-            model: "mujoco.MjModel",
-            data: "mujoco.MjData",
-            width: int,
-            height: int,
-            max_geom: int = 1000, ):
+        self,
+        model: "mujoco.MjModel",
+        data: "mujoco.MjData",
+        width: int,
+        height: int,
+        max_geom: int = 1000,
+    ):
         """Render context superclass for offscreen and window rendering."""
         self.model = model
         self.data = data
@@ -77,38 +73,23 @@ class BaseRender:
 
         self._set_mujoco_buffer()
 
-    def _set_mujoco_buffer(
-            self
-            ):
+    def _set_mujoco_buffer(self):
         raise NotImplementedError
 
-    def make_context_current(
-            self
-            ):
+    def make_context_current(self):
         raise NotImplementedError
 
-    def add_overlay(
-            self,
-            gridpos: int,
-            text1: str,
-            text2: str
-            ):
+    def add_overlay(self, gridpos: int, text1: str, text2: str):
         """Overlays text on the scene."""
         if gridpos not in self._overlays:
             self._overlays[gridpos] = ["", ""]
         self._overlays[gridpos][0] += text1 + "\n"
         self._overlays[gridpos][1] += text2 + "\n"
 
-    def add_marker(
-            self,
-            **marker_params
-            ):
+    def add_marker(self, **marker_params):
         self._markers.append(marker_params)
 
-    def _add_marker_to_scene(
-            self,
-            marker: dict
-            ):
+    def _add_marker_to_scene(self, marker: dict):
         if self.scn.ngeom >= self.scn.maxgeom:
             raise RuntimeError("Ran out of geoms. maxgeom: %d" % self.scn.maxgeom)
 
@@ -145,18 +126,16 @@ class BaseRender:
                     g.label = value
             elif hasattr(g, key):
                 raise ValueError(
-                        "mjtGeom has attr {} but type {} is invalid".format(
-                                key, type(value)
-                                )
-                        )
+                    "mjtGeom has attr {} but type {} is invalid".format(
+                        key, type(value)
+                    )
+                )
             else:
                 raise ValueError("mjtGeom doesn't have field %s" % key)
 
         self.scn.ngeom += 1
 
-    def close(
-            self
-            ):
+    def close(self):
         """Override close in your rendering subclass to perform any necessary cleanup
         after env.close() is called.
         """
@@ -167,12 +146,13 @@ class OffScreenViewer(BaseRender):
     """Offscreen rendering class with opengl context."""
 
     def __init__(
-            self,
-            model: "mujoco.MjMujoco",
-            data: "mujoco.MjData",
-            width: int,
-            height: int,
-            max_geom: int = 1000, ):
+        self,
+        model: "mujoco.MjMujoco",
+        data: "mujoco.MjData",
+        width: int,
+        height: int,
+        max_geom: int = 1000,
+    ):
         # We must make GLContext before MjrContext
         self._get_opengl_backend(width, height)
 
@@ -180,30 +160,24 @@ class OffScreenViewer(BaseRender):
 
         self._init_camera()
 
-    def _init_camera(
-            self
-            ):
+    def _init_camera(self):
         self.cam.type = mujoco.mjtCamera.mjCAMERA_FREE
         self.cam.fixedcamid = -1
         for i in range(3):
             self.cam.lookat[i] = np.median(self.data.geom_xpos[:, i])
         self.cam.distance = self.model.stat.extent
 
-    def _get_opengl_backend(
-            self,
-            width: int,
-            height: int
-            ):
+    def _get_opengl_backend(self, width: int, height: int):
         self.backend = os.environ.get("MUJOCO_GL")
         if self.backend is not None:
             try:
                 self.opengl_context = _ALL_RENDERERS[self.backend](width, height)
             except KeyError as e:
                 raise RuntimeError(
-                        "Environment variable {} must be one of {!r}: got {!r}.".format(
-                                "MUJOCO_GL", _ALL_RENDERERS.keys(), self.backend
-                                )
-                        ) from e
+                    "Environment variable {} must be one of {!r}: got {!r}.".format(
+                        "MUJOCO_GL", _ALL_RENDERERS.keys(), self.backend
+                    )
+                ) from e
 
         else:
             for name, _ in _ALL_RENDERERS.items():
@@ -215,35 +189,28 @@ class OffScreenViewer(BaseRender):
                     pass
             if self.backend is None:
                 raise RuntimeError(
-                        "No OpenGL backend could be imported. Attempting to create a "
-                        "rendering context will result in a RuntimeError."
-                        )
+                    "No OpenGL backend could be imported. Attempting to create a "
+                    "rendering context will result in a RuntimeError."
+                )
 
-    def _set_mujoco_buffer(
-            self
-            ):
+    def _set_mujoco_buffer(self):
         mujoco.mjr_setBuffer(mujoco.mjtFramebuffer.mjFB_OFFSCREEN, self.con)
 
-    def make_context_current(
-            self
-            ):
+    def make_context_current(self):
         self.opengl_context.make_current()
 
-    def free(
-            self
-            ):
+    def free(self):
         self.opengl_context.free()
 
-    def __del__(
-            self
-            ):
+    def __del__(self):
         self.free()
 
     def render(
-            self,
-            render_mode: Optional[str],
-            camera_id: Optional[int] = None,
-            segmentation: bool = False, ):
+        self,
+        render_mode: Optional[str],
+        camera_id: Optional[int] = None,
+        segmentation: bool = False,
+    ):
         if camera_id is not None:
             if camera_id == -1:
                 self.cam.type = mujoco.mjtCamera.mjCAMERA_FREE
@@ -252,7 +219,14 @@ class OffScreenViewer(BaseRender):
             self.cam.fixedcamid = camera_id
 
         mujoco.mjv_updateScene(
-                self.model, self.data, self.vopt, self.pert, self.cam, mujoco.mjtCatBit.mjCAT_ALL, self.scn, )
+            self.model,
+            self.data,
+            self.vopt,
+            self.pert,
+            self.cam,
+            mujoco.mjtCatBit.mjCAT_ALL,
+            self.scn,
+        )
 
         if segmentation:
             self.scn.flags[mujoco.mjtRndFlag.mjRND_SEGMENT] = 1
@@ -265,23 +239,24 @@ class OffScreenViewer(BaseRender):
 
         for gridpos, (text1, text2) in self._overlays.items():
             mujoco.mjr_overlay(
-                    mujoco.mjtFontScale.mjFONTSCALE_150,
-                    gridpos,
-                    self.viewport,
-                    text1.encode(),
-                    text2.encode(),
-                    self.con, )
+                mujoco.mjtFontScale.mjFONTSCALE_150,
+                gridpos,
+                self.viewport,
+                text1.encode(),
+                text2.encode(),
+                self.con,
+            )
 
         if segmentation:
             self.scn.flags[mujoco.mjtRndFlag.mjRND_SEGMENT] = 0
             self.scn.flags[mujoco.mjtRndFlag.mjRND_IDCOLOR] = 0
 
         rgb_arr = np.zeros(
-                3 * self.viewport.width * self.viewport.height, dtype=np.uint8
-                )
+            3 * self.viewport.width * self.viewport.height, dtype=np.uint8
+        )
         depth_arr = np.zeros(
-                self.viewport.width * self.viewport.height, dtype=np.float32
-                )
+            self.viewport.width * self.viewport.height, dtype=np.float32
+        )
 
         mujoco.mjr_readPixels(rgb_arr, depth_arr, self.viewport, self.con)
 
@@ -293,11 +268,15 @@ class OffScreenViewer(BaseRender):
             rgb_img = rgb_arr.reshape(self.viewport.height, self.viewport.width, 3)
 
             if segmentation:
-                seg_img = (rgb_img[:, :, 0] + rgb_img[:, :, 1] * (2 ** 8) + rgb_img[:, :, 2] * (2 ** 16))
+                seg_img = (
+                    rgb_img[:, :, 0]
+                    + rgb_img[:, :, 1] * (2**8)
+                    + rgb_img[:, :, 2] * (2**16)
+                )
                 seg_img[seg_img >= (self.scn.ngeom + 1)] = 0
                 seg_ids = np.full(
-                        (self.scn.ngeom + 1, 2), fill_value=-1, dtype=np.int32
-                        )
+                    (self.scn.ngeom + 1, 2), fill_value=-1, dtype=np.int32
+                )
 
                 for i in range(self.scn.ngeom):
                     geom = self.scn.geoms[i]
@@ -309,9 +288,7 @@ class OffScreenViewer(BaseRender):
             # original image is upside-down, so flip i
             return rgb_img[::-1, :, :]
 
-    def close(
-            self
-            ):
+    def close(self):
         self.free()
         glfw.terminate()
 
@@ -320,12 +297,13 @@ class WindowViewer(BaseRender):
     """Class for window rendering in all MuJoCo environments."""
 
     def __init__(
-            self,
-            model: "mujoco.MjModel",
-            data: "mujoco.MjData",
-            width: Optional[int] = None,
-            height: Optional[int] = None,
-            max_geom: int = 1000, ):
+        self,
+        model: "mujoco.MjModel",
+        data: "mujoco.MjData",
+        width: Optional[int] = None,
+        height: Optional[int] = None,
+        max_geom: int = 1000,
+    ):
         glfw.init()
 
         self._button_left_pressed = False
@@ -345,8 +323,8 @@ class WindowViewer(BaseRender):
         self._hide_menu = False
 
         monitor_width, monitor_height = glfw.get_video_mode(
-                glfw.get_primary_monitor()
-                ).size
+            glfw.get_primary_monitor()
+        ).size
         width = monitor_width // 2 if width is None else width
         height = monitor_height // 2 if height is None else height
 
@@ -366,34 +344,24 @@ class WindowViewer(BaseRender):
         super().__init__(model, data, width, height, max_geom)
         glfw.swap_interval(1)
 
-    def _set_mujoco_buffer(
-            self
-            ):
+    def _set_mujoco_buffer(self):
         mujoco.mjr_setBuffer(mujoco.mjtFramebuffer.mjFB_WINDOW, self.con)
 
-    def make_context_current(
-            self
-            ):
+    def make_context_current(self):
         glfw.make_context_current(self.window)
 
-    def free(
-            self
-            ):
+    def free(self):
         if self.window:
             if glfw.get_current_context() == self.window:
                 glfw.make_context_current(None)
             glfw.destroy_window(self.window)
             self.window = None
 
-    def __del__(
-            self
-            ):
+    def __del__(self):
         """Eliminate all of the OpenGL glfw contexts and windows"""
         self.free()
 
-    def render(
-            self
-            ):
+    def render(self):
         """
         Renders the environment geometries in the OpenGL glfw window:
             1. Create the overlay for the left side panel menu.
@@ -420,17 +388,18 @@ class WindowViewer(BaseRender):
                 glfw.destroy_window(self.window)
                 glfw.terminate()
             self.viewport.width, self.viewport.height = glfw.get_framebuffer_size(
-                    self.window
-                    )
+                self.window
+            )
             # update scene
             mujoco.mjv_updateScene(
-                    self.model,
-                    self.data,
-                    self.vopt,
-                    mujoco.MjvPerturb(),
-                    self.cam,
-                    mujoco.mjtCatBit.mjCAT_ALL.value,
-                    self.scn, )
+                self.model,
+                self.data,
+                self.vopt,
+                mujoco.MjvPerturb(),
+                self.cam,
+                mujoco.mjtCatBit.mjCAT_ALL.value,
+                self.scn,
+            )
 
             # marker items
             for marker in self._markers:
@@ -443,11 +412,19 @@ class WindowViewer(BaseRender):
             if not self._hide_menu:
                 for gridpos, [t1, t2] in self._overlays.items():
                     mujoco.mjr_overlay(
-                            mujoco.mjtFontScale.mjFONTSCALE_150, gridpos, self.viewport, t1, t2, self.con, )
+                        mujoco.mjtFontScale.mjFONTSCALE_150,
+                        gridpos,
+                        self.viewport,
+                        t1,
+                        t2,
+                        self.con,
+                    )
 
             glfw.swap_buffers(self.window)
             glfw.poll_events()
-            self._time_per_render = 0.9 * self._time_per_render + 0.1 * (time.time() - render_start)
+            self._time_per_render = 0.9 * self._time_per_render + 0.1 * (
+                time.time() - render_start
+            )
 
         if self._paused:
             while self._paused:
@@ -456,7 +433,9 @@ class WindowViewer(BaseRender):
                     self._advance_by_one_step = False
                     break
         else:
-            self._loop_count += self.model.opt.timestep / (self._time_per_render * self._run_speed)
+            self._loop_count += self.model.opt.timestep / (
+                self._time_per_render * self._run_speed
+            )
             if self._render_every_frame:
                 self._loop_count = 1
             while self._loop_count > 0:
@@ -468,20 +447,11 @@ class WindowViewer(BaseRender):
         # clear markers
         self._markers.clear()
 
-    def close(
-            self
-            ):
+    def close(self):
         self.free()
         glfw.terminate()
 
-    def _key_callback(
-            self,
-            window,
-            key: int,
-            scancode,
-            action: int,
-            mods
-            ):
+    def _key_callback(self, window, key: int, scancode, action: int, mods):
         if action != glfw.RELEASE:
             return
         # Switch cameras
@@ -510,8 +480,13 @@ class WindowViewer(BaseRender):
         # Capture screenshot
         elif key == glfw.KEY_T:
             img = np.zeros(
-                    (glfw.get_framebuffer_size(self.window)[1], glfw.get_framebuffer_size(self.window)[0], 3,),
-                    dtype=np.uint8, )
+                (
+                    glfw.get_framebuffer_size(self.window)[1],
+                    glfw.get_framebuffer_size(self.window)[0],
+                    3,
+                ),
+                dtype=np.uint8,
+            )
             mujoco.mjr_readPixels(img, None, self.viewport, self.con)
             imageio.imwrite(self._image_path % self._image_idx, np.flipud(img))
             self._image_idx += 1
@@ -544,21 +519,27 @@ class WindowViewer(BaseRender):
             glfw.terminate()
 
     def _cursor_pos_callback(
-            self,
-            window: "glfw.LP__GLFWwindow",
-            xpos: float,
-            ypos: float
-            ):
+        self, window: "glfw.LP__GLFWwindow", xpos: float, ypos: float
+    ):
         if not (self._button_left_pressed or self._button_right_pressed):
             return
 
-        mod_shift = (glfw.get_key(window, glfw.KEY_LEFT_SHIFT) == glfw.PRESS or glfw.get_key(
-                window, glfw.KEY_RIGHT_SHIFT
-                ) == glfw.PRESS)
+        mod_shift = (
+            glfw.get_key(window, glfw.KEY_LEFT_SHIFT) == glfw.PRESS
+            or glfw.get_key(window, glfw.KEY_RIGHT_SHIFT) == glfw.PRESS
+        )
         if self._button_right_pressed:
-            action = (mujoco.mjtMouse.mjMOUSE_MOVE_H if mod_shift else mujoco.mjtMouse.mjMOUSE_MOVE_V)
+            action = (
+                mujoco.mjtMouse.mjMOUSE_MOVE_H
+                if mod_shift
+                else mujoco.mjtMouse.mjMOUSE_MOVE_V
+            )
         elif self._button_left_pressed:
-            action = (mujoco.mjtMouse.mjMOUSE_ROTATE_H if mod_shift else mujoco.mjtMouse.mjMOUSE_ROTATE_V)
+            action = (
+                mujoco.mjtMouse.mjMOUSE_ROTATE_H
+                if mod_shift
+                else mujoco.mjtMouse.mjMOUSE_ROTATE_V
+            )
         else:
             action = mujoco.mjtMouse.mjMOUSE_ZOOM
 
@@ -567,38 +548,35 @@ class WindowViewer(BaseRender):
         width, height = glfw.get_framebuffer_size(window)
 
         mujoco.mjv_moveCamera(
-                self.model, action, dx / width, dy / height, self.scn, self.cam
-                )
+            self.model, action, dx / width, dy / height, self.scn, self.cam
+        )
 
         self._last_mouse_x = int(self._scale * xpos)
         self._last_mouse_y = int(self._scale * ypos)
 
-    def _mouse_button_callback(
-            self,
-            window: "glfw.LP__GLFWwindow",
-            button,
-            act,
-            mods
-            ):
-        self._button_left_pressed = (glfw.get_mouse_button(window, glfw.MOUSE_BUTTON_LEFT) == glfw.PRESS)
-        self._button_right_pressed = (glfw.get_mouse_button(window, glfw.MOUSE_BUTTON_RIGHT) == glfw.PRESS)
+    def _mouse_button_callback(self, window: "glfw.LP__GLFWwindow", button, act, mods):
+        self._button_left_pressed = (
+            glfw.get_mouse_button(window, glfw.MOUSE_BUTTON_LEFT) == glfw.PRESS
+        )
+        self._button_right_pressed = (
+            glfw.get_mouse_button(window, glfw.MOUSE_BUTTON_RIGHT) == glfw.PRESS
+        )
 
         x, y = glfw.get_cursor_pos(window)
         self._last_mouse_x = int(self._scale * x)
         self._last_mouse_y = int(self._scale * y)
 
-    def _scroll_callback(
-            self,
-            window,
-            x_offset,
-            y_offset: float
-            ):
+    def _scroll_callback(self, window, x_offset, y_offset: float):
         mujoco.mjv_moveCamera(
-                self.model, mujoco.mjtMouse.mjMOUSE_ZOOM, 0, -0.05 * y_offset, self.scn, self.cam, )
+            self.model,
+            mujoco.mjtMouse.mjMOUSE_ZOOM,
+            0,
+            -0.05 * y_offset,
+            self.scn,
+            self.cam,
+        )
 
-    def _create_overlay(
-            self
-            ):
+    def _create_overlay(self):
         topleft = mujoco.mjtGridPos.mjGRID_TOPLEFT
         bottomleft = mujoco.mjtGridPos.mjGRID_BOTTOMLEFT
 
@@ -606,14 +584,18 @@ class WindowViewer(BaseRender):
             self.add_overlay(topleft, "", "")
         else:
             self.add_overlay(
-                    topleft, "Run speed = %.3f x real time" % self._run_speed, "[S]lower, [F]aster", )
-        self.add_overlay(
-                topleft, "Ren[d]er every frame", "On" if self._render_every_frame else "Off"
-                )
-        self.add_overlay(
                 topleft,
-                "Switch camera (#cams = %d)" % (self.model.ncam + 1),
-                "[Tab] (camera ID = %d)" % self.cam.fixedcamid, )
+                "Run speed = %.3f x real time" % self._run_speed,
+                "[S]lower, [F]aster",
+            )
+        self.add_overlay(
+            topleft, "Ren[d]er every frame", "On" if self._render_every_frame else "Off"
+        )
+        self.add_overlay(
+            topleft,
+            "Switch camera (#cams = %d)" % (self.model.ncam + 1),
+            "[Tab] (camera ID = %d)" % self.cam.fixedcamid,
+        )
         self.add_overlay(topleft, "[C]ontact forces", "On" if self._contacts else "Off")
         self.add_overlay(topleft, "T[r]ansparent", "On" if self._transparent else "Off")
         if self._paused is not None:
@@ -622,11 +604,11 @@ class WindowViewer(BaseRender):
             else:
                 self.add_overlay(topleft, "Start", "[Space]")
                 self.add_overlay(
-                        topleft, "Advance simulation by one step", "[right arrow]"
-                        )
-        self.add_overlay(
-                topleft, "Referenc[e] frames", "On" if self.vopt.frame == 1 else "Off"
+                    topleft, "Advance simulation by one step", "[right arrow]"
                 )
+        self.add_overlay(
+            topleft, "Referenc[e] frames", "On" if self.vopt.frame == 1 else "Off"
+        )
         self.add_overlay(topleft, "[H]ide Menu", "")
         if self._image_idx > 0:
             fname = self._image_path % (self._image_idx - 1)
@@ -638,18 +620,18 @@ class WindowViewer(BaseRender):
         self.add_overlay(bottomleft, "FPS", "%d%s" % (1 / self._time_per_render, ""))
         if mujoco.__version__ >= "3.0.0":
             self.add_overlay(
-                    bottomleft, "Solver iterations", str(self.data.solver_niter[0] + 1)
-                    )
+                bottomleft, "Solver iterations", str(self.data.solver_niter[0] + 1)
+            )
         elif mujoco.__version__ < "3.0.0":
             self.add_overlay(
-                    bottomleft, "Solver iterations", str(self.data.solver_iter + 1)
-                    )
+                bottomleft, "Solver iterations", str(self.data.solver_iter + 1)
+            )
         self.add_overlay(
-                bottomleft, "Solver iterations", str(self.data.solver_niter[0] + 1)
-                )
+            bottomleft, "Solver iterations", str(self.data.solver_niter[0] + 1)
+        )
         self.add_overlay(
-                bottomleft, "Step", str(round(self.data.time / self.model.opt.timestep))
-                )
+            bottomleft, "Step", str(round(self.data.time / self.model.opt.timestep))
+        )
         self.add_overlay(bottomleft, "timestep", "%.5f" % self.model.opt.timestep)
 
 
@@ -663,13 +645,14 @@ class MujocoRenderer:
     """
 
     def __init__(
-            self,
-            model: "mujoco.MjModel",
-            data: "mujoco.MjData",
-            default_cam_config: Optional[dict] = None,
-            width: Optional[int] = None,
-            height: Optional[int] = None,
-            max_geom: int = 1000, ):
+        self,
+        model: "mujoco.MjModel",
+        data: "mujoco.MjData",
+        default_cam_config: Optional[dict] = None,
+        width: Optional[int] = None,
+        height: Optional[int] = None,
+        max_geom: int = 1000,
+    ):
         """A wrapper for clipping continuous actions within the valid bound.
 
         Args:
@@ -691,10 +674,11 @@ class MujocoRenderer:
         self.max_geom = max_geom
 
     def render(
-            self,
-            render_mode: Optional[str],
-            camera_id: Optional[int] = None,
-            camera_name: Optional[str] = None, ):
+        self,
+        render_mode: Optional[str],
+        camera_id: Optional[int] = None,
+        camera_name: Optional[str] = None,
+    ):
         """Renders a frame of the simulation in a specific format and camera view.
 
         Args:
@@ -710,12 +694,15 @@ class MujocoRenderer:
 
         viewer = self._get_viewer(render_mode=render_mode)
 
-        if render_mode in {"rgb_array", "depth_array", }:
+        if render_mode in {
+            "rgb_array",
+            "depth_array",
+        }:
             if camera_id is not None and camera_name is not None:
                 raise ValueError(
-                        "Both `camera_id` and `camera_name` cannot be"
-                        " specified at the same time."
-                        )
+                    "Both `camera_id` and `camera_name` cannot be"
+                    " specified at the same time."
+                )
 
             no_camera_specified = camera_name is None and camera_id is None
             if no_camera_specified:
@@ -723,7 +710,10 @@ class MujocoRenderer:
 
             if camera_id is None:
                 camera_id = mujoco.mj_name2id(
-                        self.model, mujoco.mjtObj.mjOBJ_CAMERA, camera_name, )
+                    self.model,
+                    mujoco.mjtObj.mjOBJ_CAMERA,
+                    camera_name,
+                )
 
             img = viewer.render(render_mode=render_mode, camera_id=camera_id)
             return img
@@ -731,10 +721,7 @@ class MujocoRenderer:
         elif render_mode == "human":
             return viewer.render()
 
-    def _get_viewer(
-            self,
-            render_mode: Optional[str]
-            ):
+    def _get_viewer(self, render_mode: Optional[str]):
         """Initializes and returns a viewer class depending on the render_mode
         - `WindowViewer` class for "human" render mode
         - `OffScreenViewer` class for "rgb_array" or "depth_array" render mode
@@ -743,16 +730,16 @@ class MujocoRenderer:
         if self.viewer is None:
             if render_mode == "human":
                 self.viewer = WindowViewer(
-                        self.model, self.data, self.width, self.height, self.max_geom
-                        )
+                    self.model, self.data, self.width, self.height, self.max_geom
+                )
             elif render_mode in {"rgb_array", "depth_array"}:
                 self.viewer = OffScreenViewer(
-                        self.model, self.data, self.width, self.height, self.max_geom
-                        )
+                    self.model, self.data, self.width, self.height, self.max_geom
+                )
             else:
                 raise AttributeError(
-                        f"Unexpected mode: {render_mode}, expected modes: human, rgb_array, or depth_array"
-                        )
+                    f"Unexpected mode: {render_mode}, expected modes: human, rgb_array, or depth_array"
+                )
             # Add default camera parameters
             self._set_cam_config()
             self._viewers[render_mode] = self.viewer
@@ -763,9 +750,7 @@ class MujocoRenderer:
 
         return self.viewer
 
-    def _set_cam_config(
-            self
-            ):
+    def _set_cam_config(self):
         """Set the default camera parameters"""
         assert self.viewer is not None
         if self.default_cam_config is not None:
@@ -775,9 +760,7 @@ class MujocoRenderer:
                 else:
                     setattr(self.viewer.cam, key, value)
 
-    def close(
-            self
-            ):
+    def close(self):
         """Close the OpenGL rendering contexts of all viewer modes"""
         for _, viewer in self._viewers.items():
             viewer.close()
