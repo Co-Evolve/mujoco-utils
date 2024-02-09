@@ -14,10 +14,10 @@ from flax import struct
 from gymnasium.core import ActType, RenderFrame
 from gymnasium.vector.utils import batch_space
 
-from mujoco_utils.arena import MJCFArena
 from mujoco_utils.environment.base import BaseEnvState, BaseEnvironment, BaseMuJoCoEnvironment, BaseObservable, \
     MuJoCoEnvironmentConfiguration
-from mujoco_utils.morphology import MJCFMorphology
+from mujoco_utils.mjcf.arena import MJCFArena
+from mujoco_utils.mjcf.morphology import MJCFMorphology
 
 
 @struct.dataclass

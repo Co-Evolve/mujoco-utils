@@ -12,9 +12,9 @@ from gymnasium.core import RenderFrame
 from mujoco import mjx
 
 import mujoco_utils.environment.mjx_spaces as mjx_spaces
-from mujoco_utils.arena import MJCFArena
+from mujoco_utils.mjcf.arena import MJCFArena
 from mujoco_utils.environment.renderer import MujocoRenderer
-from mujoco_utils.morphology import MJCFMorphology
+from mujoco_utils.mjcf.morphology import MJCFMorphology
 
 
 class MuJoCoEnvironmentConfiguration:

@@ -8,7 +8,7 @@ from dm_control import mjcf
 from fprs.robot import Morphology
 from fprs.specification import MorphologySpecification
 
-from mujoco_utils.mjcf_utils import MJCFRootComponent, MJCFSubComponent
+from mujoco_utils.mjcf.component import MJCFRootComponent, MJCFSubComponent
 
 
 class MJCFMorphology(Morphology, MJCFRootComponent, ABC):
