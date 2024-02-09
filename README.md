@@ -1,6 +1,6 @@
 # mujoco-utils
 
-MuJoCo-utils provides a framework for implementing and interfacing with MuJoCo and MuJoCo-XLA simulation environments.
+MuJoCo-utils provides a unified framework for implementing and interfacing with MuJoCo and MuJoCo-XLA simulation environments.
 The main goal of this framework is to **unify** the development and interfaces of environments implemented in native
 MuJoCo (MJC) and MuJoCo-XLA (MJX).
 
@@ -12,10 +12,10 @@ MuJoCo (MJC) and MuJoCo-XLA (MJX).
       the [Framework for Parameterized Robot Specifications (FPRS)](https://github.com/Co-Evolve/fprs).
     * MJCFMorphologies follow a modular design, dividing the robot into distinct parts.
 * MJCFArena defines the arena in which the robot is places (i.e. all non-morphological structures).
-    * MJCFArena are reconfigurable via a `ArenaConfiguration`
+    * MJCFArena are reconfigurable via a `ArenaConfig[requirements.txt](requirements.txt)uration`
         * reconfigurable via a configuration
-
-## Unified MJC and MJX environment interface
+[requirements.txt](requirements.txt)
+## Unified MJC and MJX environment in[README.md](README.md)terface
 
 * Reconfigurable through an environment configuration
 * Functional programming
@@ -35,7 +35,7 @@ MuJoCo (MJC) and MuJoCo-XLA (MJX).
       uses numpy arrays.
 * Observations are implemented using Observables; these define retriever functions that extract the observation based on
   the state datastructure and provide an easy way to implement observations.
-* 'DualMuJocoEnvironment' provides the unification of MJC and MJX, and allows conditional environment creation based on
+* DualMuJocoEnvironment provides the unification of MJC and MJX, and allows conditional environment creation based on
   a backend string.
 * Both MJC and MJX support human-mode and rgb_array rendering modes.
     * Note: MJX rendering is slow due to the offloading of datastructures of the GPU
