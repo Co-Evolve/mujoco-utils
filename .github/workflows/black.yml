@@ -7,4 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: psf/black@stable
+      - name: Format code with Black
+        uses: psf/black@stable
+        with:
+          src: mujoco_utils/
